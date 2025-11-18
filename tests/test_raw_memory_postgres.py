@@ -14,8 +14,9 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-# Force PostgreSQL mode
+# Force PostgreSQL mode and disable embeddings for faster testing
 os.environ.setdefault("MIRIX_PG_URI", "postgresql+pg8000://power@localhost:5432/mirix")
+os.environ["BUILD_EMBEDDINGS_FOR_MEMORY"] = "false"
 
 from mirix.helpers.ocr_url_extractor import OCRUrlExtractor
 from mirix.services.raw_memory_manager import RawMemoryManager
@@ -138,7 +139,7 @@ def test_raw_memory_storage():
                 print(f"     App: {retrieved.source_app}")
                 print(f"     URL: {retrieved.source_url}")
                 print(f"     OCR: {retrieved.ocr_text[:60] if retrieved.ocr_text else 'None'}...")
-                print(f"     Embedding: {'Yes' if retrieved.ocr_text_embedding else 'No'}")
+                print(f"     Has Embedding: {'Yes' if retrieved.ocr_text_embedding else 'No'}")
             else:
                 print(f"  ❌ Failed to retrieve {raw_memory_id}")
                 return False
