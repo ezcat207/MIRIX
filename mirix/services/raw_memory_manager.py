@@ -58,12 +58,19 @@ class RawMemoryManager:
         with self.session_maker() as session:
             # Generate embedding for OCR text if available and embeddings are enabled
             ocr_text_embedding = None
-            embedding_config = None
+            embedding_config_dict = None
 
             if ocr_text and BUILD_EMBEDDINGS_FOR_MEMORY:
-                ocr_text_embedding = embedding_model.get_embedding(ocr_text)
-                embedding_config = {
-                    "model": embedding_model.model_name,
+                # Get default embedding config
+                from mirix.schemas.embedding_config import EmbeddingConfig
+                default_embedding_config = EmbeddingConfig.default_config("text-embedding-3-small")
+
+                # Create embedding model instance
+                embed_model = embedding_model(default_embedding_config)
+                ocr_text_embedding = embed_model.get_text_embedding(ocr_text)
+
+                embedding_config_dict = {
+                    "model": default_embedding_config.embedding_model,
                     "embedding_dims": len(ocr_text_embedding) if ocr_text_embedding else 0,
                 }
 
@@ -77,7 +84,7 @@ class RawMemoryManager:
                 google_cloud_url=google_cloud_url,
                 metadata_=metadata or {},
                 ocr_text_embedding=ocr_text_embedding,
-                embedding_config=embedding_config,
+                embedding_config=embedding_config_dict,
                 processed=False,
                 processing_count=0,
                 user_id=actor.id,
@@ -298,9 +305,15 @@ class RawMemoryManager:
 
                 # Regenerate embedding if text changed and embeddings are enabled
                 if BUILD_EMBEDDINGS_FOR_MEMORY:
-                    raw_memory.ocr_text_embedding = embedding_model.get_embedding(ocr_text)
+                    # Get default embedding config
+                    from mirix.schemas.embedding_config import EmbeddingConfig
+                    default_embedding_config = EmbeddingConfig.default_config("text-embedding-3-small")
+
+                    # Create embedding model instance
+                    embed_model = embedding_model(default_embedding_config)
+                    raw_memory.ocr_text_embedding = embed_model.get_text_embedding(ocr_text)
                     raw_memory.embedding_config = {
-                        "model": embedding_model.model_name,
+                        "model": default_embedding_config.embedding_model,
                         "embedding_dims": len(raw_memory.ocr_text_embedding) if raw_memory.ocr_text_embedding else 0,
                     }
 
