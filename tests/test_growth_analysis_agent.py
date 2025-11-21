@@ -18,7 +18,7 @@ class TestGrowthAnalysisAgent:
         return GrowthAnalysisAgent(db_context)
 
     @pytest.fixture
-    def sample_raw_memories(self, test_user, test_organization):
+    def sample_raw_memories(self, test_pydantic_user, test_organization):
         """创建示例 raw_memory 数据（模拟一天的工作）"""
         raw_manager = RawMemoryManager()
         base_time = datetime(2025, 1, 21, 9, 0, 0)  # 早上 9 点开始
@@ -29,7 +29,7 @@ class TestGrowthAnalysisAgent:
         for i in range(18):  # 每 5 分钟一次，共 90 分钟
             app = "VSCode" if i % 2 == 0 else "Terminal"
             memory = raw_manager.insert_raw_memory(
-                actor=test_user,
+                actor=test_pydantic_user,
                 screenshot_path=f"/tmp/screenshot_{i}.png",
                 source_app=app,
                 captured_at=base_time + timedelta(minutes=i * 5),
@@ -44,7 +44,7 @@ class TestGrowthAnalysisAgent:
         # Scenario 2: 10:40-11:20 - 浏览器研究（Chrome）
         for i in range(8):  # 每 5 分钟一次，共 40 分钟
             memory = raw_manager.insert_raw_memory(
-                actor=test_user,
+                actor=test_pydantic_user,
                 screenshot_path=f"/tmp/screenshot_chrome_{i}.png",
                 source_app="Chrome",
                 captured_at=base_time + timedelta(minutes=i * 5),
@@ -58,7 +58,7 @@ class TestGrowthAnalysisAgent:
         base_time = datetime(2025, 1, 21, 13, 0, 0)
         for i in range(12):  # 每 5 分钟一次，共 60 分钟
             memory = raw_manager.insert_raw_memory(
-                actor=test_user,
+                actor=test_pydantic_user,
                 screenshot_path=f"/tmp/screenshot_zoom_{i}.png",
                 source_app="Zoom",
                 captured_at=base_time + timedelta(minutes=i * 5),
@@ -73,7 +73,7 @@ class TestGrowthAnalysisAgent:
         for i in range(30):  # 每 5 分钟一次，共 150 分钟
             app = apps_cycle[i % len(apps_cycle)]
             memory = raw_manager.insert_raw_memory(
-                actor=test_user,
+                actor=test_pydantic_user,
                 screenshot_path=f"/tmp/screenshot_afternoon_{i}.png",
                 source_app=app,
                 captured_at=base_time + timedelta(minutes=i * 5),
@@ -136,7 +136,7 @@ class TestGrowthAnalysisAgent:
         print(f"  总工作时间: {total_work_time/3600:.1f} 小时")
         print(f"  总结: {report['summary']}")
 
-    def test_focus_score_calculation(self, agent, test_user, test_organization):
+    def test_focus_score_calculation(self, agent, test_pydantic_user, test_user, test_organization):
         """测试专注度评分计算"""
         raw_manager = RawMemoryManager()
         base_time = datetime(2025, 1, 21, 9, 0, 0)
@@ -145,7 +145,7 @@ class TestGrowthAnalysisAgent:
         high_focus_memories = []
         for i in range(12):
             memory = raw_manager.insert_raw_memory(
-                actor=test_user,
+                actor=test_pydantic_user,
                 screenshot_path=f"/tmp/focus_high_{i}.png",
                 source_app="VSCode",
                 captured_at=base_time + timedelta(minutes=i * 5),
@@ -163,7 +163,7 @@ class TestGrowthAnalysisAgent:
         apps = ["VSCode", "Slack", "Chrome", "Slack", "VSCode", "Slack"]
         for i in range(12):
             memory = raw_manager.insert_raw_memory(
-                actor=test_user,
+                actor=test_pydantic_user,
                 screenshot_path=f"/tmp/focus_low_{i}.png",
                 source_app=apps[i % len(apps)],
                 captured_at=base_time + timedelta(hours=2, minutes=i * 5),
