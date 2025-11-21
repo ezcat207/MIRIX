@@ -11,9 +11,13 @@ if TYPE_CHECKING:
     from mirix.orm.cloud_file_mapping import CloudFileMapping
     from mirix.orm.episodic_memory import EpisodicEvent
     from mirix.orm.file import FileMetadata
+    from mirix.orm.goal import Goal
+    from mirix.orm.insight import Insight
     from mirix.orm.knowledge_vault import KnowledgeVaultItem
     from mirix.orm.message import Message
+    from mirix.orm.pattern import Pattern
     from mirix.orm.procedural_memory import ProceduralMemoryItem
+    from mirix.orm.project import Project
     from mirix.orm.provider import Provider
     from mirix.orm.raw_memory import RawMemoryItem
     from mirix.orm.resource_memory import ResourceMemoryItem
@@ -23,8 +27,10 @@ if TYPE_CHECKING:
         SandboxEnvironmentVariable,
     )
     from mirix.orm.semantic_memory import SemanticMemoryItem
+    from mirix.orm.task import Task
     from mirix.orm.tool import Tool
     from mirix.orm.user import User
+    from mirix.orm.work_session import WorkSession
 
 
 class Organization(SqlalchemyBase):
@@ -118,6 +124,43 @@ class Organization(SqlalchemyBase):
 
     cloud_file_mappings: Mapped[List["CloudFileMapping"]] = relationship(
         "CloudFileMapping",
+        back_populates="organization",
+        cascade="all, delete-orphan",
+    )
+
+    # Phase 2: Growth & Productivity tracking relationships
+    work_sessions: Mapped[List["WorkSession"]] = relationship(
+        "WorkSession",
+        back_populates="organization",
+        cascade="all, delete-orphan",
+    )
+
+    projects: Mapped[List["Project"]] = relationship(
+        "Project",
+        back_populates="organization",
+        cascade="all, delete-orphan",
+    )
+
+    tasks: Mapped[List["Task"]] = relationship(
+        "Task",
+        back_populates="organization",
+        cascade="all, delete-orphan",
+    )
+
+    patterns: Mapped[List["Pattern"]] = relationship(
+        "Pattern",
+        back_populates="organization",
+        cascade="all, delete-orphan",
+    )
+
+    insights: Mapped[List["Insight"]] = relationship(
+        "Insight",
+        back_populates="organization",
+        cascade="all, delete-orphan",
+    )
+
+    goals: Mapped[List["Goal"]] = relationship(
+        "Goal",
         back_populates="organization",
         cascade="all, delete-orphan",
     )

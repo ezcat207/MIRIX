@@ -953,3 +953,307 @@ class Mirix:
                 "success": False,
                 "message": f"Error updating core memory: {str(e)}",
             }
+
+    # ========================================================================
+    # Phase 2: Growth & Productivity Tracking Methods
+    # ========================================================================
+
+    def get_memories_in_range(
+        self,
+        start_time: str,
+        end_time: str,
+        memory_types: Optional[List[str]] = None,
+        user_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Get memories within a specific time range.
+
+        Args:
+            start_time: Start time in ISO format (e.g., "2025-01-01T00:00:00Z")
+            end_time: End time in ISO format
+            memory_types: List of memory types to retrieve (e.g., ["semantic", "episodic"]).
+                         If None, retrieves all types.
+            user_id: User ID to query memories for. If None, uses current active user.
+
+        Returns:
+            Dict containing memories organized by type
+
+        Example:
+            memories = sdk.get_memories_in_range(
+                start_time="2025-01-20T00:00:00Z",
+                end_time="2025-01-21T00:00:00Z",
+                memory_types=["semantic", "episodic"]
+            )
+        """
+        try:
+            from datetime import datetime
+
+            from mirix.services.raw_memory_manager import RawMemoryManager
+
+            # Get target user
+            target_user = self._get_target_user(user_id)
+            if not target_user:
+                return {"success": False, "error": "User not found"}
+
+            # Parse time range
+            start_dt = datetime.fromisoformat(start_time.replace("Z", "+00:00"))
+            end_dt = datetime.fromisoformat(end_time.replace("Z", "+00:00"))
+
+            result = {"success": True, "memories": {}}
+
+            # Default to all memory types if not specified
+            if memory_types is None:
+                memory_types = ["raw", "semantic", "episodic", "procedural", "resource"]
+
+            # Get raw memories
+            if "raw" in memory_types:
+                raw_manager = RawMemoryManager()
+                raw_memories = raw_manager.get_memories_in_range(
+                    user_id=target_user.id,
+                    organization_id=target_user.organization_id,
+                    start_time=start_dt,
+                    end_time=end_dt,
+                )
+                result["memories"]["raw"] = [
+                    {
+                        "id": mem.id,
+                        "source_app": mem.source_app,
+                        "source_url": mem.source_url,
+                        "captured_at": mem.captured_at.isoformat(),
+                        "ocr_text": mem.ocr_text[:200]
+                        if mem.ocr_text and len(mem.ocr_text) > 200
+                        else mem.ocr_text,
+                    }
+                    for mem in raw_memories
+                ]
+
+            # TODO: Add semantic, episodic, procedural, resource memory queries
+            # These will be implemented in Week 2 as part of GrowthAnalysisAgent
+
+            return result
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def get_work_sessions_in_range(
+        self, start_time: str, end_time: str, user_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Get work sessions within a specific time range.
+
+        Args:
+            start_time: Start time in ISO format
+            end_time: End time in ISO format
+            user_id: User ID to query for. If None, uses current active user.
+
+        Returns:
+            Dict containing list of work sessions
+
+        Example:
+            sessions = sdk.get_work_sessions_in_range(
+                start_time="2025-01-20T00:00:00Z",
+                end_time="2025-01-21T00:00:00Z"
+            )
+        """
+        try:
+            from datetime import datetime
+
+            from sqlalchemy import and_
+
+            from mirix.orm.work_session import WorkSession
+
+            target_user = self._get_target_user(user_id)
+            if not target_user:
+                return {"success": False, "error": "User not found"}
+
+            start_dt = datetime.fromisoformat(start_time.replace("Z", "+00:00"))
+            end_dt = datetime.fromisoformat(end_time.replace("Z", "+00:00"))
+
+            with self._agent.client.server.db_context() as session:
+                work_sessions = (
+                    session.query(WorkSession)
+                    .filter(
+                        and_(
+                            WorkSession.user_id == target_user.id,
+                            WorkSession.start_time >= start_dt,
+                            WorkSession.end_time <= end_dt,
+                        )
+                    )
+                    .order_by(WorkSession.start_time.desc())
+                    .all()
+                )
+
+                return {
+                    "success": True,
+                    "work_sessions": [
+                        {
+                            "id": ws.id,
+                            "start_time": ws.start_time.isoformat(),
+                            "end_time": ws.end_time.isoformat(),
+                            "duration": ws.duration,
+                            "project_id": ws.project_id,
+                            "activity_type": ws.activity_type,
+                            "focus_score": ws.focus_score,
+                            "app_breakdown": ws.app_breakdown,
+                        }
+                        for ws in work_sessions
+                    ],
+                }
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def create_project(
+        self,
+        name: str,
+        description: str,
+        status: str = "active",
+        priority: int = 5,
+        target_end_date: Optional[str] = None,
+        user_id: Optional[str] = None,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        """
+        Create a new project.
+
+        Args:
+            name: Project name
+            description: Project description
+            status: Project status (default: "active")
+            priority: Priority level 1-10 (default: 5)
+            target_end_date: Target completion date in ISO format (optional)
+            user_id: User ID to create project for. If None, uses current active user.
+            **kwargs: Additional fields (metadata_, related_goals, etc.)
+
+        Returns:
+            Dict containing created project data
+
+        Example:
+            project = sdk.create_project(
+                name="Personal Website",
+                description="Build a personal portfolio website with Next.js",
+                priority=8,
+                target_end_date="2025-03-01T00:00:00Z"
+            )
+        """
+        try:
+            import uuid
+            from datetime import datetime
+
+            from mirix.orm.project import Project
+
+            target_user = self._get_target_user(user_id)
+            if not target_user:
+                return {"success": False, "error": "User not found"}
+
+            # Parse target_end_date if provided
+            target_end_dt = None
+            if target_end_date:
+                target_end_dt = datetime.fromisoformat(
+                    target_end_date.replace("Z", "+00:00")
+                )
+
+            # Create project
+            project = Project(
+                id=f"project-{uuid.uuid4()}",
+                name=name,
+                description=description,
+                status=status,
+                priority=priority,
+                start_date=datetime.utcnow(),
+                target_end_date=target_end_dt,
+                user_id=target_user.id,
+                organization_id=target_user.organization_id,
+                metadata_=kwargs.get("metadata_", {}),
+                related_goals=kwargs.get("related_goals", []),
+            )
+
+            with self._agent.client.server.db_context() as session:
+                session.add(project)
+                session.commit()
+
+                return {
+                    "success": True,
+                    "project": {
+                        "id": project.id,
+                        "name": project.name,
+                        "description": project.description,
+                        "status": project.status,
+                        "priority": project.priority,
+                        "progress": project.progress,
+                    },
+                }
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def list_projects(
+        self,
+        status: Optional[str] = None,
+        limit: int = 50,
+        user_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        List projects for a user.
+
+        Args:
+            status: Filter by status (e.g., "active", "completed"). If None, returns all.
+            limit: Maximum number of projects to return (default: 50)
+            user_id: User ID to query for. If None, uses current active user.
+
+        Returns:
+            Dict containing list of projects
+
+        Example:
+            projects = sdk.list_projects(status="active", limit=10)
+        """
+        try:
+            from mirix.orm.project import Project
+
+            target_user = self._get_target_user(user_id)
+            if not target_user:
+                return {"success": False, "error": "User not found"}
+
+            with self._agent.client.server.db_context() as session:
+                query = session.query(Project).filter(
+                    Project.user_id == target_user.id
+                )
+
+                if status:
+                    query = query.filter(Project.status == status)
+
+                projects = (
+                    query.order_by(Project.priority.desc(), Project.created_at.desc())
+                    .limit(limit)
+                    .all()
+                )
+
+                return {
+                    "success": True,
+                    "projects": [
+                        {
+                            "id": p.id,
+                            "name": p.name,
+                            "description": p.description,
+                            "status": p.status,
+                            "priority": p.priority,
+                            "progress": p.progress,
+                            "total_time_spent": p.total_time_spent,
+                            "start_date": p.start_date.isoformat(),
+                            "target_end_date": p.target_end_date.isoformat()
+                            if p.target_end_date
+                            else None,
+                        }
+                        for p in projects
+                    ],
+                }
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def _get_target_user(self, user_id: Optional[str] = None):
+        """Helper method to get target user."""
+        if user_id:
+            return self._agent.client.server.user_manager.get_user_by_id(user_id)
+        else:
+            users = self._agent.client.server.user_manager.list_users()
+            active_user = next(
+                (user for user in users if user.status == "active"), None
+            )
+            return active_user if active_user else (users[0] if users else None)

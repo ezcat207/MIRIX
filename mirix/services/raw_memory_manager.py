@@ -431,3 +431,39 @@ class RawMemoryManager:
             session.refresh(raw_memory)
 
             return raw_memory
+
+    @enforce_types
+    def get_memories_in_range(
+        self,
+        user_id: str,
+        organization_id: str,
+        start_time: datetime,
+        end_time: datetime,
+        limit: int = 1000,
+    ) -> List[RawMemoryItem]:
+        """
+        Get raw memory items within a specific time range.
+
+        Args:
+            user_id: The user ID to filter by
+            organization_id: The organization ID to filter by
+            start_time: Start of the time range
+            end_time: End of the time range
+            limit: Maximum number of items to return (default: 1000)
+
+        Returns:
+            List of RawMemoryItem instances within the time range
+        """
+        with self.session_maker() as session:
+            query = (
+                select(RawMemoryItem)
+                .where(RawMemoryItem.user_id == user_id)
+                .where(RawMemoryItem.organization_id == organization_id)
+                .where(RawMemoryItem.captured_at >= start_time)
+                .where(RawMemoryItem.captured_at <= end_time)
+                .order_by(RawMemoryItem.captured_at.desc())
+                .limit(limit)
+            )
+
+            result = session.execute(query)
+            return list(result.scalars().all())
