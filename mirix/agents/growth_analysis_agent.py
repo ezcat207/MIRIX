@@ -77,7 +77,7 @@ class GrowthAnalysisAgent:
 
         # Step 2: 生成 WorkSession
         work_sessions = self._generate_work_sessions(
-            raw_memories, user_id, organization_id
+            raw_memories, user_id, organization_id, start_of_day, end_of_day
         )
 
         # Step 3: 分析时间分配
@@ -144,33 +144,31 @@ class GrowthAnalysisAgent:
         )
 
     def _get_existing_work_sessions(
-        self, raw_memory_ids: List[str], user_id: str, organization_id: str
+        self, raw_memory_ids: List[str], user_id: str, organization_id: str, start_time: datetime, end_time: datetime
     ) -> List[WorkSession]:
         """
-        检查数据库中是否已存在使用这些 raw_memories 的 work_sessions
+        检查数据库中是否已存在该时间范围内的 work_sessions
 
         Args:
-            raw_memory_ids: raw_memory ID 列表
+            raw_memory_ids: raw_memory ID 列表（未使用，保留以兼容）
             user_id: 用户 ID
             organization_id: 组织 ID
+            start_time: 开始时间
+            end_time: 结束时间
 
         Returns:
             已存在的 WorkSession 列表，如果不存在则返回空列表
         """
-        if not raw_memory_ids:
-            return []
-
         with self.db_context() as session:
-            # 查询包含任一 raw_memory_id 的 work_sessions
-            # 使用 JSONB @> 操作符检查是否包含指定的 raw_memory_id
+            # 查询该时间范围内的 work_sessions
+            # 使用时间范围查询，避免复杂的 JSON 操作
             existing = (
                 session.query(WorkSession)
                 .filter(
                     WorkSession.user_id == user_id,
                     WorkSession.organization_id == organization_id,
-                    WorkSession.raw_memory_references.op('@>')(
-                        cast(f'["{raw_memory_ids[0]}"]', JSONB)
-                    ),  # 检查是否包含第一个 ID
+                    WorkSession.start_time >= start_time,
+                    WorkSession.start_time <= end_time,
                 )
                 .all()
             )
@@ -178,7 +176,8 @@ class GrowthAnalysisAgent:
             return existing if existing else []
 
     def _generate_work_sessions(
-        self, raw_memories: List, user_id: str, organization_id: str
+        self, raw_memories: List, user_id: str, organization_id: str,
+        start_time: datetime, end_time: datetime
     ) -> List[WorkSession]:
         """
         从 raw_memory 生成 WorkSession
@@ -195,6 +194,8 @@ class GrowthAnalysisAgent:
             raw_memories: RawMemoryItem 列表（已按时间排序）
             user_id: 用户 ID
             organization_id: 组织 ID
+            start_time: 查询时间段的开始时间
+            end_time: 查询时间段的结束时间
 
         Returns:
             生成的 WorkSession 列表
@@ -202,9 +203,11 @@ class GrowthAnalysisAgent:
         if not raw_memories:
             return []
 
-        # 检查这些 raw_memories 是否已经生成过 work_sessions
+        # 检查这些 raw_memories 是否已经生成过 work_sessions（基于时间范围查询）
         raw_memory_ids = [m.id for m in raw_memories]
-        existing_sessions = self._get_existing_work_sessions(raw_memory_ids, user_id, organization_id)
+        existing_sessions = self._get_existing_work_sessions(
+            raw_memory_ids, user_id, organization_id, start_time, end_time
+        )
 
         if existing_sessions:
             # 如果已存在，直接返回现有的 sessions
