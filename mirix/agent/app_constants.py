@@ -22,7 +22,7 @@ STUCK_TIMEOUT = 10
 RUNNING_TIMEOUT = 30
 TOTAL_TIMEOUT = 60
 
-SKIP_META_MEMORY_MANAGER = False
+SKIP_META_MEMORY_MANAGER = True  # 启用并行模式，加速 4-6 倍
 
 # Whether to use the reflexion agent
 WITH_REFLEXION_AGENT = False
