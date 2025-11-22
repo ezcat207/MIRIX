@@ -496,7 +496,7 @@ class GrowthAnalysisAgent:
         }
 
         # 6. 平均会话时长
-        average_session_duration = total_work_time / total_sessions
+        average_session_duration = total_work_time / total_sessions if total_sessions > 0 else 0
 
         # 7. 按应用的时间统计（聚合所有 session 的 app_breakdown）
         by_app = {}
@@ -874,7 +874,8 @@ class GrowthAnalysisAgent:
         high_switch_sessions = [
             ws
             for ws in work_sessions
-            if ws.metadata_.get("context_switches", 0) / (ws.duration / 60) > 2
+            if ws.duration and ws.duration > 0 and
+               ws.metadata_.get("context_switches", 0) / (ws.duration / 60) > 2
         ]
 
         if len(high_switch_sessions) >= 3:
