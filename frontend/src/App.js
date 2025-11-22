@@ -4,8 +4,6 @@ import SettingsPanel from './components/SettingsPanel';
 import ScreenshotMonitor from './components/ScreenshotMonitor';
 import ExistingMemory from './components/ExistingMemory';
 import GrowthHub from './components/GrowthHub';
-import ProjectDashboard from './components/ProjectDashboard';
-import MorningBrief from './components/MorningBrief';
 import ApiKeyModal from './components/ApiKeyModal';
 import BackendLoadingModal from './components/BackendLoadingModal';
 import Logo from './components/Logo';
@@ -389,22 +387,10 @@ function App() {
             {t('tabs.memory')}
           </button>
           <button
-            className={`tab ${activeTab === 'morning' ? 'active' : ''}`}
-            onClick={() => setActiveTab('morning')}
-          >
-            Morning Brief
-          </button>
-          <button
             className={`tab ${activeTab === 'growth' ? 'active' : ''}`}
             onClick={() => setActiveTab('growth')}
           >
-            Growth Review
-          </button>
-          <button
-            className={`tab ${activeTab === 'projects' ? 'active' : ''}`}
-            onClick={() => setActiveTab('projects')}
-          >
-            Projects
+            Growth Hub
           </button>
           <button
             className={`tab ${activeTab === 'settings' ? 'active' : ''}`}
@@ -446,14 +432,8 @@ function App() {
         {activeTab === 'memory' && (
           <ExistingMemory settings={settings} />
         )}
-        {activeTab === 'morning' && (
-          <MorningBrief serverUrl={settings.serverUrl} />
-        )}
         {activeTab === 'growth' && (
           <GrowthHub settings={settings} />
-        )}
-        {activeTab === 'projects' && (
-          <ProjectDashboard serverUrl={settings.serverUrl} />
         )}
         {activeTab === 'settings' && (
           <SettingsPanel
