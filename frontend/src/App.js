@@ -4,6 +4,7 @@ import SettingsPanel from './components/SettingsPanel';
 import ScreenshotMonitor from './components/ScreenshotMonitor';
 import ExistingMemory from './components/ExistingMemory';
 import GrowthReview from './components/GrowthReview';
+import ProjectDashboard from './components/ProjectDashboard';
 import ApiKeyModal from './components/ApiKeyModal';
 import BackendLoadingModal from './components/BackendLoadingModal';
 import Logo from './components/Logo';
@@ -393,6 +394,12 @@ function App() {
             Growth Review
           </button>
           <button
+            className={`tab ${activeTab === 'projects' ? 'active' : ''}`}
+            onClick={() => setActiveTab('projects')}
+          >
+            Projects
+          </button>
+          <button
             className={`tab ${activeTab === 'settings' ? 'active' : ''}`}
             onClick={() => setActiveTab('settings')}
           >
@@ -434,6 +441,9 @@ function App() {
         )}
         {activeTab === 'growth' && (
           <GrowthReview serverUrl={settings.serverUrl} />
+        )}
+        {activeTab === 'projects' && (
+          <ProjectDashboard serverUrl={settings.serverUrl} />
         )}
         {activeTab === 'settings' && (
           <SettingsPanel
