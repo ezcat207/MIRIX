@@ -5,6 +5,7 @@ import ScreenshotMonitor from './components/ScreenshotMonitor';
 import ExistingMemory from './components/ExistingMemory';
 import GrowthReview from './components/GrowthReview';
 import ProjectDashboard from './components/ProjectDashboard';
+import MorningBrief from './components/MorningBrief';
 import ApiKeyModal from './components/ApiKeyModal';
 import BackendLoadingModal from './components/BackendLoadingModal';
 import Logo from './components/Logo';
@@ -388,6 +389,12 @@ function App() {
             {t('tabs.memory')}
           </button>
           <button
+            className={`tab ${activeTab === 'morning' ? 'active' : ''}`}
+            onClick={() => setActiveTab('morning')}
+          >
+            Morning Brief
+          </button>
+          <button
             className={`tab ${activeTab === 'growth' ? 'active' : ''}`}
             onClick={() => setActiveTab('growth')}
           >
@@ -438,6 +445,9 @@ function App() {
         </div>
         {activeTab === 'memory' && (
           <ExistingMemory settings={settings} />
+        )}
+        {activeTab === 'morning' && (
+          <MorningBrief serverUrl={settings.serverUrl} />
         )}
         {activeTab === 'growth' && (
           <GrowthReview serverUrl={settings.serverUrl} />
