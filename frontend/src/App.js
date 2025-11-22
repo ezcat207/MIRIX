@@ -123,9 +123,9 @@ function App() {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => {
-        console.warn('⏱️  Health check timeout (30s) - aborting');
+        console.warn('⏱️  Health check timeout (120s) - aborting');
         controller.abort();
-      }, 30000); // 30 second timeout (increased from 5s)
+      }, 120000); // 120 second timeout (临时方案，等优化完成后改回 30s)
 
       console.log('📡 Sending fetch request...');
       const startTime = performance.now();
