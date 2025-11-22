@@ -140,6 +140,39 @@ class GrowthAnalysisAgent:
             limit=2000,  # 一天最多 2000 条记录
         )
 
+    def _get_existing_work_sessions(
+        self, raw_memory_ids: List[str], user_id: str, organization_id: str
+    ) -> List[WorkSession]:
+        """
+        检查数据库中是否已存在使用这些 raw_memories 的 work_sessions
+
+        Args:
+            raw_memory_ids: raw_memory ID 列表
+            user_id: 用户 ID
+            organization_id: 组织 ID
+
+        Returns:
+            已存在的 WorkSession 列表，如果不存在则返回空列表
+        """
+        if not raw_memory_ids:
+            return []
+
+        with self.db_context() as session:
+            # 查询包含任一 raw_memory_id 的 work_sessions
+            existing = (
+                session.query(WorkSession)
+                .filter(
+                    WorkSession.user_id == user_id,
+                    WorkSession.organization_id == organization_id,
+                    WorkSession.raw_memory_references.op('@>')(
+                        f'["{raw_memory_ids[0]}"]'
+                    ),  # 检查是否包含第一个 ID
+                )
+                .all()
+            )
+
+            return existing if existing else []
+
     def _generate_work_sessions(
         self, raw_memories: List, user_id: str, organization_id: str
     ) -> List[WorkSession]:
@@ -152,6 +185,7 @@ class GrowthAnalysisAgent:
         3. 合并成 WorkSession
         4. 计算 focus_score（基于 context switches 频率）
         5. 生成 app_breakdown 统计
+        6. 去重：检查数据库中是否已存在相同的 work_sessions
 
         Args:
             raw_memories: RawMemoryItem 列表（已按时间排序）
@@ -163,6 +197,14 @@ class GrowthAnalysisAgent:
         """
         if not raw_memories:
             return []
+
+        # 检查这些 raw_memories 是否已经生成过 work_sessions
+        raw_memory_ids = [m.id for m in raw_memories]
+        existing_sessions = self._get_existing_work_sessions(raw_memory_ids, user_id, organization_id)
+
+        if existing_sessions:
+            # 如果已存在，直接返回现有的 sessions
+            return existing_sessions
 
         work_sessions = []
         current_session = None
@@ -258,6 +300,17 @@ class GrowthAnalysisAgent:
         duration = int(
             (session_dict["last_activity_time"] - session_dict["start_time"]).total_seconds()
         )
+
+        # 如果 duration 为 0（只有单个 raw_memory），使用默认时长
+        # 假设每个截图代表至少 3 分钟的工作时间（截图间隔的平均值）
+        if duration == 0:
+            # 检查 raw_memory 数量，如果只有 1 个，使用默认值
+            if len(session_dict["raw_memory_ids"]) == 1:
+                duration = 180  # 3 分钟 = 180 秒
+            else:
+                # 有多个 raw_memory 但 duration 还是 0，可能是时间戳完全相同
+                # 基于 raw_memory 数量估算：每个代表 30 秒
+                duration = len(session_dict["raw_memory_ids"]) * 30
 
         # 计算 focus_score（基于 context switches 频率）
         # 公式：10 - (context_switches / duration_minutes * 2)
