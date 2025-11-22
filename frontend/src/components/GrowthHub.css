@@ -32,7 +32,9 @@
 .growth-subtabs-left {
   display: flex;
   gap: 8px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: thin;
 }
 
 .growth-subtab {

@@ -74,7 +74,7 @@ def episodic_memory_insert(self: "Agent", items: List[EpisodicEventForLLM]):
             details=item["details"],
             organization_id=self.user.organization_id,
             tree_path=item.get("tree_path"),
-            raw_memory_references=item.get("raw_memory_references"),
+            raw_memory_references=item.get("raw_memory_references") or [],
         )
     response = "Events inserted! Now you need to check if there are repeated events shown in the system prompt."
     return response
@@ -351,7 +351,7 @@ def semantic_memory_insert(self: "Agent", items: List[SemanticMemoryItemBase]):
             tree_path=item["tree_path"],
             organization_id=self.user.organization_id,
             actor=self.user,
-            raw_memory_references=item.get("raw_memory_references"),
+            raw_memory_references=item.get("raw_memory_references") or [],
         )
 
 
