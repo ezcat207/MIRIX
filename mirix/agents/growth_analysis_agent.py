@@ -1089,7 +1089,7 @@ class GrowthAnalysisAgent:
                         metadata_={"pattern_confidence": pattern.confidence},
                     )
 
-                    with self.db_context.Session() as session:
+                    with self.db_context() as session:
                         session.add(insight)
                         session.commit()
                         session.refresh(insight)
@@ -1123,7 +1123,7 @@ class GrowthAnalysisAgent:
                 metadata_={"current_deep_work_hours": deep_work_hours},
             )
 
-            with self.db_context.Session() as session:
+            with self.db_context() as session:
                 session.add(insight)
                 session.commit()
                 session.refresh(insight)
@@ -1156,7 +1156,7 @@ class GrowthAnalysisAgent:
                 metadata_={"current_rating": rating, "avg_focus": avg_focus},
             )
 
-            with self.db_context.Session() as session:
+            with self.db_context() as session:
                 session.add(insight)
                 session.commit()
                 session.refresh(insight)
@@ -1200,7 +1200,7 @@ class GrowthAnalysisAgent:
                     metadata_={"pattern_confidence": pattern.confidence},
                 )
 
-                with self.db_context.Session() as session:
+                with self.db_context() as session:
                     session.add(insight)
                     session.commit()
                     session.refresh(insight)
@@ -1228,7 +1228,7 @@ class GrowthAnalysisAgent:
                     metadata_={"pattern_confidence": pattern.confidence},
                 )
 
-                with self.db_context.Session() as session:
+                with self.db_context() as session:
                     session.add(insight)
                     session.commit()
                     session.refresh(insight)
@@ -1272,7 +1272,7 @@ class GrowthAnalysisAgent:
                     metadata_={"pattern_confidence": pattern.confidence},
                 )
 
-                with self.db_context.Session() as session:
+                with self.db_context() as session:
                     session.add(insight)
                     session.commit()
                     session.refresh(insight)
@@ -1300,7 +1300,7 @@ class GrowthAnalysisAgent:
                     metadata_={"pattern_confidence": pattern.confidence},
                 )
 
-                with self.db_context.Session() as session:
+                with self.db_context() as session:
                     session.add(insight)
                     session.commit()
                     session.refresh(insight)
@@ -1334,7 +1334,7 @@ class GrowthAnalysisAgent:
                 metadata_={"distracted_hours": distracted_hours},
             )
 
-            with self.db_context.Session() as session:
+            with self.db_context() as session:
                 session.add(insight)
                 session.commit()
                 session.refresh(insight)
