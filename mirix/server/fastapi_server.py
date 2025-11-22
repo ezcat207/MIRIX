@@ -2723,6 +2723,372 @@ async def create_user(request: CreateUserRequest):
         )
 
 
+# ==============================================================================
+# Phase 2 Week 3 - Growth Analysis & Dashboard API Endpoints
+# ==============================================================================
+
+# ----------------------
+# Growth Analysis Endpoints
+# ----------------------
+
+class DailyReviewResponse(BaseModel):
+    success: bool
+    data: Optional[Dict[str, Any]] = None
+    error: Optional[str] = None
+
+
+@app.get("/growth/daily_review", response_model=DailyReviewResponse)
+async def get_daily_review(
+    date: Optional[str] = None,
+    user_id: Optional[str] = None,
+):
+    """
+    Get daily growth analysis review
+
+    Args:
+        date: Date in YYYY-MM-DD format (defaults to today)
+        user_id: User ID (defaults to current user)
+
+    Returns:
+        Daily review data including:
+        - Work sessions
+        - Time allocation
+        - Efficiency analysis
+        - Patterns discovered
+        - Insights generated
+        - AI summary
+    """
+    try:
+        from datetime import datetime
+        from mirix.agents.growth_analysis_agent import GrowthAnalysisAgent
+        from mirix.server.server import db_context
+
+        # Get user
+        user = get_user_or_default(agent, user_id)
+        if not user:
+            return DailyReviewResponse(
+                success=False,
+                error="User not found"
+            )
+
+        # Parse date
+        if date:
+            try:
+                review_date = datetime.strptime(date, "%Y-%m-%d")
+            except ValueError:
+                return DailyReviewResponse(
+                    success=False,
+                    error="Invalid date format. Use YYYY-MM-DD"
+                )
+        else:
+            review_date = datetime.now()
+
+        # Create agent and get review
+        growth_agent = GrowthAnalysisAgent(db_context)
+        review_data = growth_agent.daily_review(
+            review_date,
+            user.id,
+            user.organization_id
+        )
+
+        return DailyReviewResponse(
+            success=True,
+            data=review_data
+        )
+
+    except Exception as e:
+        logger.error(f"Error in /growth/daily_review: {e}")
+        logger.error(traceback.format_exc())
+        return DailyReviewResponse(
+            success=False,
+            error=str(e)
+        )
+
+
+class MorningBriefResponse(BaseModel):
+    success: bool
+    data: Optional[Dict[str, Any]] = None
+    error: Optional[str] = None
+
+
+@app.get("/growth/morning_brief", response_model=MorningBriefResponse)
+async def get_morning_brief(
+    date: Optional[str] = None,
+    user_id: Optional[str] = None,
+):
+    """
+    Get morning brief for the day
+
+    Args:
+        date: Date in YYYY-MM-DD format (defaults to today)
+        user_id: User ID (defaults to current user)
+
+    Returns:
+        Morning brief including:
+        - Yesterday's summary
+        - Today's priorities
+        - Reminders
+        - Optimal schedule
+        - Motivational message
+    """
+    try:
+        from datetime import datetime
+        from mirix.agents.morning_brief_agent import MorningBriefAgent
+        from mirix.server.server import db_context
+
+        # Get user
+        user = get_user_or_default(agent, user_id)
+        if not user:
+            return MorningBriefResponse(
+                success=False,
+                error="User not found"
+            )
+
+        # Parse date
+        if date:
+            try:
+                brief_date = datetime.strptime(date, "%Y-%m-%d")
+            except ValueError:
+                return MorningBriefResponse(
+                    success=False,
+                    error="Invalid date format. Use YYYY-MM-DD"
+                )
+        else:
+            brief_date = datetime.now()
+
+        # Create agent and get brief
+        morning_agent = MorningBriefAgent(db_context)
+        brief_data = morning_agent.generate_brief(
+            brief_date,
+            user.id,
+            user.organization_id
+        )
+
+        return MorningBriefResponse(
+            success=True,
+            data=brief_data
+        )
+
+    except Exception as e:
+        logger.error(f"Error in /growth/morning_brief: {e}")
+        logger.error(traceback.format_exc())
+        return MorningBriefResponse(
+            success=False,
+            error=str(e)
+        )
+
+
+# ----------------------
+# Dashboard Endpoints
+# ----------------------
+
+class ProjectListResponse(BaseModel):
+    success: bool
+    projects: Optional[List[Dict[str, Any]]] = None
+    error: Optional[str] = None
+
+
+@app.get("/dashboard/projects", response_model=ProjectListResponse)
+async def get_projects(
+    user_id: Optional[str] = None,
+    status: Optional[str] = None,
+):
+    """
+    Get list of all projects
+
+    Args:
+        user_id: User ID (defaults to current user)
+        status: Filter by status (active, completed, archived)
+
+    Returns:
+        List of projects with basic info
+    """
+    try:
+        from mirix.orm.project import Project
+        from mirix.server.server import db_context
+
+        # Get user
+        user = get_user_or_default(agent, user_id)
+        if not user:
+            return ProjectListResponse(
+                success=False,
+                error="User not found"
+            )
+
+        # Query projects
+        with db_context() as session:
+            query = session.query(Project).filter_by(
+                user_id=user.id,
+                organization_id=user.organization_id
+            )
+
+            # Filter by status if provided
+            if status:
+                query = query.filter_by(status=status)
+
+            projects = query.order_by(Project.priority.desc()).all()
+
+            projects_data = []
+            for project in projects:
+                projects_data.append({
+                    "id": project.id,
+                    "name": project.name,
+                    "description": project.description,
+                    "status": project.status,
+                    "priority": project.priority,
+                    "progress": project.progress or 0,
+                    "total_time_spent": project.total_time_spent or 0,
+                    "start_date": project.start_date.isoformat() if project.start_date else None,
+                    "target_end_date": project.target_end_date.isoformat() if project.target_end_date else None,
+                    "created_at": project.created_at.isoformat(),
+                })
+
+            return ProjectListResponse(
+                success=True,
+                projects=projects_data
+            )
+
+    except Exception as e:
+        logger.error(f"Error in /dashboard/projects: {e}")
+        logger.error(traceback.format_exc())
+        return ProjectListResponse(
+            success=False,
+            error=str(e)
+        )
+
+
+class ProjectDashboardResponse(BaseModel):
+    success: bool
+    data: Optional[Dict[str, Any]] = None
+    error: Optional[str] = None
+
+
+@app.get("/dashboard/project/{project_id}", response_model=ProjectDashboardResponse)
+async def get_project_dashboard(
+    project_id: str,
+    user_id: Optional[str] = None,
+):
+    """
+    Get detailed dashboard for a specific project
+
+    Args:
+        project_id: Project ID
+        user_id: User ID (defaults to current user)
+
+    Returns:
+        Project dashboard including:
+        - Project info
+        - Progress statistics
+        - Tasks grouped by status
+        - Bottlenecks
+        - Velocity metrics
+        - Time investment
+        - Health score
+    """
+    try:
+        from mirix.agents.project_dashboard_agent import ProjectDashboardAgent
+        from mirix.server.server import db_context
+
+        # Get user
+        user = get_user_or_default(agent, user_id)
+        if not user:
+            return ProjectDashboardResponse(
+                success=False,
+                error="User not found"
+            )
+
+        # Create agent and get dashboard
+        dashboard_agent = ProjectDashboardAgent(db_context)
+        dashboard_data = dashboard_agent.get_dashboard_data(
+            project_id,
+            user.id,
+            user.organization_id
+        )
+
+        # Check if project exists
+        if not dashboard_data.get("project_info", {}).get("exists"):
+            return ProjectDashboardResponse(
+                success=False,
+                error="Project not found"
+            )
+
+        return ProjectDashboardResponse(
+            success=True,
+            data=dashboard_data
+        )
+
+    except Exception as e:
+        logger.error(f"Error in /dashboard/project/{project_id}: {e}")
+        logger.error(traceback.format_exc())
+        return ProjectDashboardResponse(
+            success=False,
+            error=str(e)
+        )
+
+
+# ----------------------
+# Reminders Endpoints
+# ----------------------
+
+class RemindersCheckResponse(BaseModel):
+    success: bool
+    reminders: Optional[List[Dict[str, Any]]] = None
+    error: Optional[str] = None
+
+
+@app.post("/reminders/check", response_model=RemindersCheckResponse)
+async def check_reminders(
+    user_id: Optional[str] = None,
+):
+    """
+    Check for reminders (distraction alerts, break reminders)
+
+    Args:
+        user_id: User ID (defaults to current user)
+
+    Returns:
+        List of reminders including:
+        - Focus reminders (distraction detected)
+        - Break reminders (continuous work)
+    """
+    try:
+        from mirix.agents.reminder_agent import ReminderAgent
+        from mirix.server.server import db_context
+
+        # Get user
+        user = get_user_or_default(agent, user_id)
+        if not user:
+            return RemindersCheckResponse(
+                success=False,
+                error="User not found"
+            )
+
+        # Create agent and check reminders
+        reminder_agent = ReminderAgent(db_context)
+        reminders = reminder_agent.check_and_remind(
+            user.id,
+            user.organization_id
+        )
+
+        # Convert datetime objects to ISO format
+        for reminder in reminders:
+            if "timestamp" in reminder and hasattr(reminder["timestamp"], "isoformat"):
+                reminder["timestamp"] = reminder["timestamp"].isoformat()
+
+        return RemindersCheckResponse(
+            success=True,
+            reminders=reminders
+        )
+
+    except Exception as e:
+        logger.error(f"Error in /reminders/check: {e}")
+        logger.error(traceback.format_exc())
+        return RemindersCheckResponse(
+            success=False,
+            error=str(e)
+        )
+
+
 if __name__ == "__main__":
     import uvicorn
 
