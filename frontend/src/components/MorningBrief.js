@@ -160,7 +160,14 @@ const MorningBrief = ({ serverUrl }) => {
     );
   }
 
-  const { greeting, summary, tasks, reminders, insights, motivation } = briefData;
+  const {
+    greeting,
+    yesterday_summary,
+    today_priorities,
+    reminders,
+    optimal_schedule,
+    motivational_message
+  } = briefData;
 
   return (
     <div className="morning-brief-container">
@@ -178,73 +185,92 @@ const MorningBrief = ({ serverUrl }) => {
         </button>
       </div>
 
-      {/* Summary Stats */}
-      <div className="summary-section">
-        <h2>📊 Today's Overview</h2>
-        <div className="stats-grid">
-          <div className="stat-card">
-            <div className="stat-icon">📝</div>
-            <div className="stat-content">
-              <div className="stat-value">{summary?.total_tasks || 0}</div>
-              <div className="stat-label">Total Tasks</div>
-            </div>
-          </div>
-          <div className="stat-card priority">
-            <div className="stat-icon">🔥</div>
-            <div className="stat-content">
-              <div className="stat-value">{summary?.high_priority_tasks || 0}</div>
-              <div className="stat-label">High Priority</div>
-            </div>
-          </div>
-          <div className="stat-card overdue">
-            <div className="stat-icon">⚠️</div>
-            <div className="stat-content">
-              <div className="stat-value">{summary?.overdue_tasks || 0}</div>
-              <div className="stat-label">Overdue</div>
-            </div>
-          </div>
-          <div className="stat-card time">
-            <div className="stat-icon">⏱️</div>
-            <div className="stat-content">
-              <div className="stat-value">{summary?.time_estimate_hours?.toFixed(1) || 0}h</div>
-              <div className="stat-label">Estimated Time</div>
-            </div>
+      {/* Yesterday Summary */}
+      {yesterday_summary?.available && (
+        <div className="yesterday-section">
+          <h2>📊 Yesterday's Summary</h2>
+          <div className="stats-grid">
+            {yesterday_summary.total_sessions !== undefined && (
+              <div className="stat-card">
+                <div className="stat-icon">📝</div>
+                <div className="stat-content">
+                  <div className="stat-value">{yesterday_summary.total_sessions || 0}</div>
+                  <div className="stat-label">Work Sessions</div>
+                </div>
+              </div>
+            )}
+            {yesterday_summary.total_hours !== undefined && (
+              <div className="stat-card">
+                <div className="stat-icon">⏱️</div>
+                <div className="stat-content">
+                  <div className="stat-value">{yesterday_summary.total_hours?.toFixed(1) || 0}h</div>
+                  <div className="stat-label">Total Hours</div>
+                </div>
+              </div>
+            )}
+            {yesterday_summary.focus_score !== undefined && (
+              <div className="stat-card">
+                <div className="stat-icon">🎯</div>
+                <div className="stat-content">
+                  <div className="stat-value">{yesterday_summary.focus_score?.toFixed(1) || 0}/10</div>
+                  <div className="stat-label">Focus Score</div>
+                </div>
+              </div>
+            )}
+            {yesterday_summary.tasks_completed !== undefined && (
+              <div className="stat-card">
+                <div className="stat-icon">✅</div>
+                <div className="stat-content">
+                  <div className="stat-value">{yesterday_summary.tasks_completed || 0}</div>
+                  <div className="stat-label">Tasks Done</div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
-      </div>
+      )}
 
-      {/* Tasks Sections */}
-      <div className="tasks-sections">
-        {/* High Priority Tasks */}
-        {tasks?.high_priority && tasks.high_priority.length > 0 && (
-          <div className="task-section">
-            <h3>🔥 High Priority Tasks</h3>
-            <div className="task-list">
-              {tasks.high_priority.map(renderTaskCard)}
-            </div>
+      {/* Today's Priorities */}
+      {today_priorities && today_priorities.length > 0 && (
+        <div className="task-section">
+          <h3>🔥 Today's Priorities</h3>
+          <div className="task-list">
+            {today_priorities.map(renderTaskCard)}
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Overdue Tasks */}
-        {tasks?.overdue && tasks.overdue.length > 0 && (
-          <div className="task-section overdue-section">
-            <h3>⚠️ Overdue Tasks</h3>
-            <div className="task-list">
-              {tasks.overdue.map(renderTaskCard)}
+      {/* Optimal Schedule */}
+      {optimal_schedule && (
+        <div className="schedule-section">
+          <h3>⏰ Optimal Schedule</h3>
+          {optimal_schedule.high_productivity_hours && optimal_schedule.high_productivity_hours.length > 0 && (
+            <div className="productivity-hours">
+              <p className="schedule-label">🎯 High Productivity Hours:</p>
+              <div className="hours-list">
+                {optimal_schedule.high_productivity_hours.map((hour, index) => (
+                  <span key={index} className="hour-badge">
+                    {hour}:00 - {hour + 1}:00
+                  </span>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
-
-        {/* Due Today */}
-        {tasks?.due_today && tasks.due_today.length > 0 && (
-          <div className="task-section">
-            <h3>📅 Due Today</h3>
-            <div className="task-list">
-              {tasks.due_today.map(renderTaskCard)}
+          )}
+          {optimal_schedule.suggested_schedule && optimal_schedule.suggested_schedule.length > 0 && (
+            <div className="suggested-schedule">
+              <p className="schedule-label">📋 Suggested Schedule:</p>
+              <div className="schedule-items">
+                {optimal_schedule.suggested_schedule.map((item, index) => (
+                  <div key={index} className="schedule-item">
+                    <span className="schedule-time">{item.time}</span>
+                    <span className="schedule-task">{item.task}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
 
       {/* Reminders */}
       {reminders && reminders.length > 0 && (
@@ -256,36 +282,20 @@ const MorningBrief = ({ serverUrl }) => {
         </div>
       )}
 
-      {/* Insights from Yesterday */}
-      {insights && insights.length > 0 && (
-        <div className="insights-section">
-          <h3>💡 Insights from Yesterday</h3>
-          <div className="insights-list">
-            {insights.map((insight, index) => (
-              <div key={index} className="insight-card">
-                <span className="insight-icon">💡</span>
-                <p>{insight}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Motivation */}
-      {motivation && (
+      {motivational_message && (
         <div className="motivation-section">
           <div className="motivation-card">
             <div className="motivation-icon">🌟</div>
-            <p className="motivation-text">{motivation}</p>
+            <p className="motivation-text">{motivational_message}</p>
           </div>
         </div>
       )}
 
       {/* Empty State */}
-      {!tasks?.high_priority?.length &&
-       !tasks?.overdue?.length &&
-       !tasks?.due_today?.length &&
-       !reminders?.length && (
+      {(!today_priorities || today_priorities.length === 0) &&
+       (!reminders || reminders.length === 0) &&
+       (!yesterday_summary || !yesterday_summary.available) && (
         <div className="empty-state">
           <div className="empty-icon">✨</div>
           <h3>You're all caught up!</h3>
