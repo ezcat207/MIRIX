@@ -4,6 +4,7 @@ GrowthAnalysisAgent - Phase 2 核心 Agent
 """
 
 import uuid
+import datetime as dt
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 
@@ -1084,6 +1085,7 @@ class GrowthAnalysisAgent:
                         impact_score=8.5,
                         related_patterns=[pattern.id],
                         status="active",
+                        generated_at=datetime.now(dt.timezone.utc),
                         user_id=user_id,
                         organization_id=organization_id,
                         metadata_={"pattern_confidence": pattern.confidence},
@@ -1118,6 +1120,7 @@ class GrowthAnalysisAgent:
                 impact_score=9.0,  # 高影响
                 related_patterns=[],
                 status="active",
+                generated_at=datetime.now(dt.timezone.utc),
                 user_id=user_id,
                 organization_id=organization_id,
                 metadata_={"current_deep_work_hours": deep_work_hours},
@@ -1151,6 +1154,7 @@ class GrowthAnalysisAgent:
                 impact_score=7.5,
                 related_patterns=[],
                 status="active",
+                generated_at=datetime.now(dt.timezone.utc),
                 user_id=user_id,
                 organization_id=organization_id,
                 metadata_={"current_rating": rating, "avg_focus": avg_focus},
@@ -1195,6 +1199,7 @@ class GrowthAnalysisAgent:
                     impact_score=8.0,
                     related_patterns=[pattern.id],
                     status="active",
+                    generated_at=datetime.now(dt.timezone.utc),
                     user_id=user_id,
                     organization_id=organization_id,
                     metadata_={"pattern_confidence": pattern.confidence},
@@ -1223,6 +1228,7 @@ class GrowthAnalysisAgent:
                     impact_score=7.5,
                     related_patterns=[pattern.id],
                     status="active",
+                    generated_at=datetime.now(dt.timezone.utc),
                     user_id=user_id,
                     organization_id=organization_id,
                     metadata_={"pattern_confidence": pattern.confidence},
@@ -1267,6 +1273,7 @@ class GrowthAnalysisAgent:
                     impact_score=8.5,
                     related_patterns=[pattern.id],
                     status="active",
+                    generated_at=datetime.now(dt.timezone.utc),
                     user_id=user_id,
                     organization_id=organization_id,
                     metadata_={"pattern_confidence": pattern.confidence},
@@ -1295,6 +1302,7 @@ class GrowthAnalysisAgent:
                     impact_score=5.0,
                     related_patterns=[pattern.id],
                     status="active",
+                    generated_at=datetime.now(dt.timezone.utc),
                     user_id=user_id,
                     organization_id=organization_id,
                     metadata_={"pattern_confidence": pattern.confidence},
@@ -1329,6 +1337,7 @@ class GrowthAnalysisAgent:
                 impact_score=6.5,
                 related_patterns=[],
                 status="active",
+                generated_at=datetime.now(dt.timezone.utc),
                 user_id=user_id,
                 organization_id=organization_id,
                 metadata_={"distracted_hours": distracted_hours},
