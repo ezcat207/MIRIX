@@ -608,6 +608,11 @@ class TemporaryMessageAccumulator:
     def _build_memory_message(self, ready_to_process, voice_content):
         """Build the message content for memory agents."""
 
+        # 性能监控
+        from mirix.utils.performance import PerformanceMonitor
+        perf_monitor = PerformanceMonitor(logger=self.logger)
+        perf_monitor.start_total()
+
         # Store screenshots in raw_memory table before sending to memory agents
         raw_memory_ids = []
         raw_memory_manager = RawMemoryManager()
@@ -676,11 +681,12 @@ class TemporaryMessageAccumulator:
         # 并行执行 OCR（最多 4 个并发线程）
         ocr_results = []
         if ocr_tasks:
-            self.logger.info(f"🔄 Starting parallel OCR processing for {len(ocr_tasks)} images (max_workers=4)...")
-            with ThreadPoolExecutor(max_workers=4) as executor:
-                futures = [executor.submit(process_single_ocr, task) for task in ocr_tasks]
-                ocr_results = [f.result() for f in futures]
-            self.logger.info(f"✅ Parallel OCR completed for {len(ocr_results)} images")
+            with perf_monitor.measure("OCR Processing"):
+                self.logger.info(f"🔄 Starting parallel OCR processing for {len(ocr_tasks)} images (max_workers=4)...")
+                with ThreadPoolExecutor(max_workers=4) as executor:
+                    futures = [executor.submit(process_single_ocr, task) for task in ocr_tasks]
+                    ocr_results = [f.result() for f in futures]
+                self.logger.info(f"✅ Parallel OCR completed for {len(ocr_results)} images")
 
         # 第三步：构建 raw_memory 数据列表
         raw_memory_data_list = []
@@ -715,21 +721,23 @@ class TemporaryMessageAccumulator:
         # 批量插入所有 raw_memory（性能优化：一次 commit）
         if raw_memory_data_list:
             try:
-                self.logger.info(f"💾 Bulk inserting {len(raw_memory_data_list)} raw_memory items...")
-                raw_memories = raw_memory_manager.bulk_insert_raw_memories(
-                    raw_memory_data_list,
-                    skip_embeddings=True  # 跳过 embedding，留给异步任务
-                )
-                raw_memory_ids = [rm.id for rm in raw_memories]
-                self.logger.info(f"✅ Bulk insert completed: {len(raw_memory_ids)} items stored")
+                with perf_monitor.measure("Database Bulk Insert"):
+                    self.logger.info(f"💾 Bulk inserting {len(raw_memory_data_list)} raw_memory items...")
+                    raw_memories = raw_memory_manager.bulk_insert_raw_memories(
+                        raw_memory_data_list,
+                        skip_embeddings=True  # 跳过 embedding，留给异步任务
+                    )
+                    raw_memory_ids = [rm.id for rm in raw_memories]
+                    self.logger.info(f"✅ Bulk insert completed: {len(raw_memory_ids)} items stored")
 
                 # Log individual items for debugging
                 for rm in raw_memories:
                     self.logger.info(f"   - {rm.id} (app: {rm.source_app}, url: {rm.source_url}, ocr: {len(rm.ocr_text) if rm.ocr_text else 0} chars)")
 
                 # 启动后台 embedding 生成（异步，不阻塞主线程）
-                self.logger.info(f"🚀 Starting background embedding generation for {len(raw_memories)} items...")
-                raw_memory_manager.generate_embeddings_in_background(raw_memories)
+                with perf_monitor.measure("Background Embedding Startup"):
+                    self.logger.info(f"🚀 Starting background embedding generation for {len(raw_memories)} items...")
+                    raw_memory_manager.generate_embeddings_in_background(raw_memories)
 
             except Exception as e:
                 self.logger.error(f"❌ Bulk insert failed: {e}")
@@ -875,6 +883,9 @@ class TemporaryMessageAccumulator:
 
             message_parts.append({"type": "text", "text": raw_memory_info})
             self.logger.info(f"📋 Added {len(raw_memory_ids)} raw_memory references to message")
+
+        # 输出性能报告
+        perf_monitor.report()
 
         return message_parts, raw_memory_ids
 
