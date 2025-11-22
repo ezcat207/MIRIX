@@ -376,6 +376,10 @@ class GrowthAnalysisAgent:
         Returns:
             是否相关
         """
+        # 相同应用肯定相关（必须放在最前面！）
+        if app1 == app2:
+            return True
+
         # 定义应用分组
         coding_apps = {"vscode", "code", "pycharm", "intellij", "vim", "terminal", "iterm"}
         browser_apps = {"chrome", "safari", "firefox", "edge"}
