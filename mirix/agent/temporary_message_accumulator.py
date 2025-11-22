@@ -612,6 +612,9 @@ class TemporaryMessageAccumulator:
         raw_memory_ids = []
         raw_memory_manager = RawMemoryManager()
 
+        # 收集所有需要插入的 raw_memory 数据（批量处理优化）
+        raw_memory_data_list = []
+
         for timestamp, item in ready_to_process:
             if "image_uris" in item and item["image_uris"]:
                 sources = item.get("sources", [])
@@ -652,37 +655,51 @@ class TemporaryMessageAccumulator:
                         # Parse timestamp
                         captured_at = datetime.fromisoformat(timestamp) if isinstance(timestamp, str) else timestamp
 
-                        # Store in raw_memory table
                         # Prefer local file path, fallback to Google Cloud URL string
                         screenshot_path = local_file_path if (local_file_path and local_file_path != "None") else (google_cloud_url_str or "unknown")
 
-                        # Debug logging
-                        self.logger.info(f"📸 Storing raw_memory: local_path={local_file_path}, cloud_url={google_cloud_url_str}, screenshot_path={screenshot_path}")
-
-                        raw_memory = raw_memory_manager.insert_raw_memory(
-                            actor=self.client.user,
-                            screenshot_path=screenshot_path,
-                            source_app=source_app,
-                            captured_at=captured_at,
-                            ocr_text=ocr_text if ocr_text else None,
-                            source_url=source_url,
-                            google_cloud_url=google_cloud_url_str,
-                            metadata={
+                        # 收集数据，而不是立即插入
+                        raw_memory_data_list.append({
+                            "actor": self.client.user,
+                            "screenshot_path": screenshot_path,
+                            "source_app": source_app,
+                            "captured_at": captured_at,
+                            "ocr_text": ocr_text if ocr_text else None,
+                            "source_url": source_url,
+                            "google_cloud_url": google_cloud_url_str,
+                            "metadata": {
                                 "batch_index": idx,
                                 "total_in_batch": len(image_uris),
                             },
-                            organization_id=self.client.user.organization_id,
-                        )
-
-                        raw_memory_ids.append(raw_memory.id)
-                        self.logger.info(f"✅ Stored screenshot in raw_memory: {raw_memory.id} (app: {source_app}, url: {source_url}, ocr: {len(ocr_text) if ocr_text else 0} chars)")
-
+                            "organization_id": self.client.user.organization_id,
+                        })
 
                     except Exception as e:
-                        self.logger.error(f"❌ Failed to store screenshot in raw_memory: {e}")
+                        self.logger.error(f"❌ Failed to prepare screenshot data for raw_memory: {e}")
                         import traceback
                         traceback.print_exc()
                         # Continue processing even if one screenshot fails
+
+        # 批量插入所有 raw_memory（性能优化：一次 commit）
+        if raw_memory_data_list:
+            try:
+                self.logger.info(f"💾 Bulk inserting {len(raw_memory_data_list)} raw_memory items...")
+                raw_memories = raw_memory_manager.bulk_insert_raw_memories(
+                    raw_memory_data_list,
+                    skip_embeddings=True  # 跳过 embedding，留给异步任务
+                )
+                raw_memory_ids = [rm.id for rm in raw_memories]
+                self.logger.info(f"✅ Bulk insert completed: {len(raw_memory_ids)} items stored")
+
+                # Log individual items for debugging
+                for rm in raw_memories:
+                    self.logger.info(f"   - {rm.id} (app: {rm.source_app}, url: {rm.source_url}, ocr: {len(rm.ocr_text) if rm.ocr_text else 0} chars)")
+
+            except Exception as e:
+                self.logger.error(f"❌ Bulk insert failed: {e}")
+                import traceback
+                traceback.print_exc()
+                # Fallback: empty raw_memory_ids list
 
         # Collect content organized by source
         images_by_source = {}  # source_name -> [(timestamp, file_refs)]

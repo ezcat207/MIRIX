@@ -146,6 +146,82 @@ class RawMemoryManager:
 
             return raw_memory
 
+    def bulk_insert_raw_memories(
+        self,
+        raw_memory_data_list: List[dict],
+        skip_embeddings: bool = True,
+    ) -> List[RawMemoryItem]:
+        """
+        批量插入 raw memory items，优化数据库性能。
+
+        Args:
+            raw_memory_data_list: List of dicts containing raw memory data:
+                - actor: PydanticUser
+                - screenshot_path: str
+                - source_app: str
+                - captured_at: datetime
+                - ocr_text: Optional[str]
+                - source_url: Optional[str]
+                - google_cloud_url: Optional[str]
+                - metadata: Optional[dict]
+                - organization_id: Optional[str]
+            skip_embeddings: 是否跳过 embedding 生成（默认 True，留给异步任务）
+
+        Returns:
+            创建的 RawMemoryItem 实例列表
+        """
+        with self.session_maker() as session:
+            raw_memories = []
+
+            for data in raw_memory_data_list:
+                actor = data["actor"]
+                screenshot_path = data["screenshot_path"]
+                source_app = data["source_app"]
+                captured_at = data["captured_at"]
+                ocr_text = data.get("ocr_text")
+                source_url = data.get("source_url")
+                google_cloud_url = data.get("google_cloud_url")
+                metadata = data.get("metadata")
+                organization_id = data.get("organization_id") or actor.organization_id
+
+                # 生成 ID
+                raw_memory_id = f"rawmem-{uuid.uuid4()}"
+
+                # 暂不生成 embedding（留给异步任务）
+                # 这里可以根据 skip_embeddings 参数决定是否生成
+                ocr_text_embedding = None
+                embedding_config_dict = None
+
+                # 创建 raw memory 对象
+                raw_memory = RawMemoryItem(
+                    id=raw_memory_id,
+                    screenshot_path=screenshot_path,
+                    source_app=source_app,
+                    captured_at=captured_at,
+                    ocr_text=ocr_text,
+                    source_url=source_url,
+                    google_cloud_url=google_cloud_url,
+                    metadata_=metadata or {},
+                    ocr_text_embedding=ocr_text_embedding,
+                    embedding_config=embedding_config_dict,
+                    processed=False,
+                    processing_count=0,
+                    user_id=actor.id,
+                    organization_id=organization_id,
+                )
+
+                raw_memories.append(raw_memory)
+
+            # 批量插入（一次 commit）
+            session.bulk_save_objects(raw_memories, return_defaults=True)
+            session.commit()
+
+            # Refresh all objects to get database-generated values
+            for rm in raw_memories:
+                session.refresh(rm)
+
+            return raw_memories
+
     @enforce_types
     def get_raw_memory_by_id(
         self,
