@@ -3,7 +3,7 @@ import ChatWindow from './components/ChatWindow';
 import SettingsPanel from './components/SettingsPanel';
 import ScreenshotMonitor from './components/ScreenshotMonitor';
 import ExistingMemory from './components/ExistingMemory';
-import GrowthReview from './components/GrowthReview';
+import GrowthHub from './components/GrowthHub';
 import ProjectDashboard from './components/ProjectDashboard';
 import MorningBrief from './components/MorningBrief';
 import ApiKeyModal from './components/ApiKeyModal';
@@ -450,7 +450,7 @@ function App() {
           <MorningBrief serverUrl={settings.serverUrl} />
         )}
         {activeTab === 'growth' && (
-          <GrowthReview serverUrl={settings.serverUrl} />
+          <GrowthHub settings={settings} />
         )}
         {activeTab === 'projects' && (
           <ProjectDashboard serverUrl={settings.serverUrl} />
