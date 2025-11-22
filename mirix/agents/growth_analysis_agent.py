@@ -8,6 +8,9 @@ import datetime as dt
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 
+from sqlalchemy import cast
+from sqlalchemy.dialects.postgresql import JSONB
+
 from mirix.orm.work_session import WorkSession
 from mirix.orm.pattern import Pattern
 from mirix.orm.insight import Insight
@@ -159,13 +162,14 @@ class GrowthAnalysisAgent:
 
         with self.db_context() as session:
             # 查询包含任一 raw_memory_id 的 work_sessions
+            # 使用 JSONB @> 操作符检查是否包含指定的 raw_memory_id
             existing = (
                 session.query(WorkSession)
                 .filter(
                     WorkSession.user_id == user_id,
                     WorkSession.organization_id == organization_id,
                     WorkSession.raw_memory_references.op('@>')(
-                        f'["{raw_memory_ids[0]}"]'
+                        cast(f'["{raw_memory_ids[0]}"]', JSONB)
                     ),  # 检查是否包含第一个 ID
                 )
                 .all()
