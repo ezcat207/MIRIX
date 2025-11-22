@@ -3,6 +3,7 @@ import ChatWindow from './components/ChatWindow';
 import SettingsPanel from './components/SettingsPanel';
 import ScreenshotMonitor from './components/ScreenshotMonitor';
 import ExistingMemory from './components/ExistingMemory';
+import GrowthReview from './components/GrowthReview';
 import ApiKeyModal from './components/ApiKeyModal';
 import BackendLoadingModal from './components/BackendLoadingModal';
 import Logo from './components/Logo';
@@ -367,25 +368,31 @@ function App() {
           <span className="version">v0.1.5</span>
         </div>
         <div className="tabs">
-          <button 
+          <button
             className={`tab ${activeTab === 'chat' ? 'active' : ''}`}
             onClick={() => setActiveTab('chat')}
           >
             {t('tabs.chat')}
           </button>
-          <button 
+          <button
             className={`tab ${activeTab === 'screenshots' ? 'active' : ''}`}
             onClick={() => setActiveTab('screenshots')}
           >
             {t('tabs.screenshots')}
           </button>
-          <button 
+          <button
             className={`tab ${activeTab === 'memory' ? 'active' : ''}`}
             onClick={() => setActiveTab('memory')}
           >
             {t('tabs.memory')}
           </button>
-          <button 
+          <button
+            className={`tab ${activeTab === 'growth' ? 'active' : ''}`}
+            onClick={() => setActiveTab('growth')}
+          >
+            Growth Review
+          </button>
+          <button
             className={`tab ${activeTab === 'settings' ? 'active' : ''}`}
             onClick={() => setActiveTab('settings')}
           >
@@ -424,6 +431,9 @@ function App() {
         </div>
         {activeTab === 'memory' && (
           <ExistingMemory settings={settings} />
+        )}
+        {activeTab === 'growth' && (
+          <GrowthReview serverUrl={settings.serverUrl} />
         )}
         {activeTab === 'settings' && (
           <SettingsPanel
