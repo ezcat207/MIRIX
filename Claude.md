@@ -358,6 +358,31 @@ python scripts/import_real_screenshots.py --no-skip
      - `mirix/services/user_manager.py` (list_users 方法)
      - `mirix/orm/sqlalchemy_base.py` (to_pydantic 转换)
 
+   **问题 2: Growth Review 页面除以零错误**
+   - **错误信息**: `float division by zero` 显示在前端
+   - **根本原因**: `mirix/agents/growth_analysis_agent.py:877` 在分析工作会话模式时，未检查会话时长是否为零或 None
+   - **影响**: Growth Review 页面完全无法加载，`/growth/daily_review` API 返回 500 错误
+   - **解决方案** (已修复，2025-11-21):
+     1. 修改 `mirix/agents/growth_analysis_agent.py:877-878`，添加时长验证：
+        ```python
+        # Before (错误):
+        if ws.metadata_.get("context_switches", 0) / (ws.duration / 60) > 2
+
+        # After (正确):
+        if ws.duration and ws.duration > 0 and
+           ws.metadata_.get("context_switches", 0) / (ws.duration / 60) > 2
+        ```
+     2. 现在会跳过时长无效的会话（duration = 0 或 None）
+     3. 模式检测功能正常运行，不会因边缘情况崩溃
+   - **预防措施**:
+     - 在所有涉及除法的分析代码中添加零值检查
+     - 在数据库层面添加约束，确保 `duration > 0`
+     - 在 raw memory 处理时验证并拒绝零时长的会话
+     - 使用统一的除法安全函数：`safe_divide(a, b, default=0)`
+   - **相关文件**:
+     - `mirix/agents/growth_analysis_agent.py` (模式检测代码)
+     - `frontend/src/components/GrowthReview.js` (错误展示)
+
 7. **数据库操作**:
    - 生产环境使用 PostgreSQL (port 5432)
    - 测试数据使用 mock 脚本生成（`scripts/create_raw_memory_mock_data_simple.py`）
