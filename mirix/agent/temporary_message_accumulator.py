@@ -695,6 +695,10 @@ class TemporaryMessageAccumulator:
                 for rm in raw_memories:
                     self.logger.info(f"   - {rm.id} (app: {rm.source_app}, url: {rm.source_url}, ocr: {len(rm.ocr_text) if rm.ocr_text else 0} chars)")
 
+                # 启动后台 embedding 生成（异步，不阻塞主线程）
+                self.logger.info(f"🚀 Starting background embedding generation for {len(raw_memories)} items...")
+                raw_memory_manager.generate_embeddings_in_background(raw_memories)
+
             except Exception as e:
                 self.logger.error(f"❌ Bulk insert failed: {e}")
                 import traceback

@@ -222,6 +222,104 @@ class RawMemoryManager:
 
             return raw_memories
 
+    def generate_embeddings_in_background(
+        self,
+        raw_memory_items: List[RawMemoryItem],
+    ) -> None:
+        """
+        异步生成 embeddings，在后台线程中运行。
+
+        Args:
+            raw_memory_items: 需要生成 embedding 的 raw_memory 对象列表
+        """
+        import threading
+
+        def _generate_embeddings():
+            """内部函数：在后台线程中生成 embeddings"""
+            import logging
+            logger = logging.getLogger("Mirix.RawMemoryManager.EmbeddingGenerator")
+
+            logger.info(f"🔄 Starting background embedding generation for {len(raw_memory_items)} items...")
+
+            success_count = 0
+            error_count = 0
+
+            for raw_memory in raw_memory_items:
+                try:
+                    # Skip if no OCR text or embeddings disabled
+                    if not raw_memory.ocr_text or not BUILD_EMBEDDINGS_FOR_MEMORY:
+                        continue
+
+                    # 生成 embedding（复用现有逻辑）
+                    from mirix.services.provider_manager import ProviderManager
+                    from mirix.settings import model_settings
+                    from mirix.schemas.embedding_config import EmbeddingConfig
+                    import numpy as np
+                    from mirix.constants import MAX_EMBEDDING_DIM
+
+                    provider_manager = ProviderManager()
+
+                    # Check for API keys
+                    openai_key = provider_manager.get_openai_override_key() or model_settings.openai_api_key
+                    gemini_key = provider_manager.get_gemini_override_key() or model_settings.gemini_api_key
+
+                    embedding_config = None
+                    if openai_key:
+                        embedding_config = EmbeddingConfig.default_config("text-embedding-3-small")
+                    elif gemini_key:
+                        embedding_config = EmbeddingConfig.default_config("text-embedding-004")
+
+                    if not embedding_config:
+                        logger.warning(f"⚠️  No valid API key for embedding generation, skipping {raw_memory.id}")
+                        continue
+
+                    # Generate embedding
+                    embed_model = embedding_model(embedding_config)
+                    raw_embedding = embed_model.get_text_embedding(raw_memory.ocr_text)
+
+                    # Pad to MAX_EMBEDDING_DIM
+                    raw_embedding_np = np.array(raw_embedding)
+                    if len(raw_embedding) < MAX_EMBEDDING_DIM:
+                        ocr_text_embedding = np.pad(
+                            raw_embedding_np,
+                            (0, MAX_EMBEDDING_DIM - len(raw_embedding)),
+                            mode="constant"
+                        ).tolist()
+                    else:
+                        ocr_text_embedding = raw_embedding
+
+                    embedding_config.embedding_dim = len(ocr_text_embedding)
+                    embedding_config_dict = embedding_config.model_dump()
+
+                    # 更新数据库（新会话）
+                    with self.session_maker() as session:
+                        # 重新获取对象（避免 detached 状态）
+                        stmt = select(RawMemoryItem).where(RawMemoryItem.id == raw_memory.id)
+                        result = session.execute(stmt)
+                        db_raw_memory = result.scalar_one_or_none()
+
+                        if db_raw_memory:
+                            db_raw_memory.ocr_text_embedding = ocr_text_embedding
+                            db_raw_memory.embedding_config = embedding_config_dict
+                            session.commit()
+                            success_count += 1
+                            logger.debug(f"✅ Generated embedding for {raw_memory.id}")
+                        else:
+                            logger.error(f"❌ Raw memory {raw_memory.id} not found in database")
+                            error_count += 1
+
+                except Exception as e:
+                    error_count += 1
+                    logger.error(f"❌ Failed to generate embedding for {raw_memory.id}: {e}")
+                    import traceback
+                    traceback.print_exc()
+
+            logger.info(f"✅ Background embedding generation completed: {success_count} success, {error_count} errors")
+
+        # 在后台线程中运行
+        thread = threading.Thread(target=_generate_embeddings, daemon=True, name="EmbeddingGenerator")
+        thread.start()
+
     @enforce_types
     def get_raw_memory_by_id(
         self,
