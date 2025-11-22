@@ -4,7 +4,7 @@ from logging import getLogger
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 # from: https://gist.github.com/norton120/22242eadb80bf2cf1dd54a961b151c61
 
@@ -75,19 +75,20 @@ class MirixBase(BaseModel):
         """generates a factory function for a given prefix"""
         return f"The human-friendly ID of the {prefix.capitalize()}"
 
-    @field_validator("id", check_fields=False, mode="before")
+    @model_validator(mode="before")
     @classmethod
-    def allow_bare_uuids(cls, v, values):
+    def allow_bare_uuids(cls, values):
         """to ease the transition to stripe ids,
         we allow bare uuids and convert them with a warning
         """
-        _ = values  # for SCA
-        if isinstance(v, UUID):
-            logger.debug(
-                f"Bare UUIDs are deprecated, please use the full prefixed id ({cls.__id_prefix__})!"
-            )
-            return f"{cls.__id_prefix__}-{v}"
-        return v
+        if isinstance(values, dict) and "id" in values:
+            v = values["id"]
+            if isinstance(v, UUID):
+                logger.debug(
+                    f"Bare UUIDs are deprecated, please use the full prefixed id ({cls.__id_prefix__})!"
+                )
+                values["id"] = f"{cls.__id_prefix__}-{v}"
+        return values
 
 
 class OrmMetadataBase(MirixBase):
