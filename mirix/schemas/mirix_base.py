@@ -57,13 +57,12 @@ class MirixBase(BaseModel):
         else:
             prefix_pattern = prefix
 
+        # Support both short format (8 hex) and full UUID format (8-4-4-4-12)
         return (
             r"^" + prefix_pattern + r"-"  # prefix string
-            r"[a-fA-F0-9]{8}"  # 8 hexadecimal characters
-            # r"[a-fA-F0-9]{4}-"  # 4 hexadecimal characters
-            # r"[a-fA-F0-9]{4}-"  # 4 hexadecimal characters
-            # r"[a-fA-F0-9]{4}-"  # 4 hexadecimal characters
-            # r"[a-fA-F0-9]{12}$"  # 12 hexadecimal characters
+            r"[a-zA-Z0-9]+"  # alphanumeric characters (for legacy IDs)
+            r"(-[a-fA-F0-9]{4}){0,3}"  # optional UUID parts (0 to 3 groups of 4 hex)
+            r"(-[a-fA-F0-9]{12})?"  # optional final UUID part (12 hex)
         )
 
     @classmethod

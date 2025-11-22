@@ -327,7 +327,38 @@ python scripts/import_real_screenshots.py --no-skip
    - PostgreSQL 查询: 使用 `psql` 直接查询验证数据
    - 前端: 使用浏览器开发者工具查看网络请求和控制台
 
-6. **数据库操作**:
+6. **常见问题和解决方案**:
+
+   **问题 1: Pydantic User ID 验证失败导致 raw memory 存储失败**
+   - **错误信息**: `ValidationError: String should match pattern '^user-[a-zA-Z0-9]+...'`
+   - **根本原因**: `mirix/schemas/mirix_base.py` 中的 `_id_regex_pattern()` 方法的 ID pattern 太严格，只匹配 8 个十六进制字符，不支持完整的 UUID 格式
+   - **影响**: 导致 `list_users()` 调用时 Pydantic 验证失败，进而导致 raw memory 存储流程中断
+   - **解决方案** (已修复，2025-11-21):
+     1. 修改 `mirix/schemas/mirix_base.py:60-66` 的 pattern 为：
+        ```python
+        r"^" + prefix_pattern + r"-"  # prefix string
+        r"[a-zA-Z0-9]+"  # alphanumeric characters (for legacy IDs)
+        r"(-[a-fA-F0-9]{4}){0,3}"  # optional UUID parts (0 to 3 groups of 4 hex)
+        r"(-[a-fA-F0-9]{12})?"  # optional final UUID part (12 hex)
+        ```
+     2. 删除数据库中不符合 `user-` 前缀规范的测试用户：
+        ```sql
+        DELETE FROM users WHERE id = 'test-user-growth-analysis';
+        ```
+     3. 现在支持的 ID 格式：
+        - 短格式: `user-12345678`（8 个字母数字）
+        - 完整 UUID: `user-bac511a9-d871-4249-8159-c5d761c170dd`
+        - 默认 UUID: `user-00000000-0000-4000-8000-000000000000`
+   - **预防措施**:
+     - 创建新用户时必须使用 `user-` 前缀
+     - 避免手动创建测试用户，使用 `MirixBase._generate_id()` 方法生成符合规范的 ID
+     - 定期检查数据库中的用户 ID 是否符合 pattern
+   - **相关文件**:
+     - `mirix/schemas/mirix_base.py` (ID pattern 定义)
+     - `mirix/services/user_manager.py` (list_users 方法)
+     - `mirix/orm/sqlalchemy_base.py` (to_pydantic 转换)
+
+7. **数据库操作**:
    - 生产环境使用 PostgreSQL (port 5432)
    - 测试数据使用 mock 脚本生成（`scripts/create_raw_memory_mock_data_simple.py`）
    - 真实数据在 `/Users/power/.mirix/tmp/images/`
