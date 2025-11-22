@@ -612,8 +612,8 @@ class TemporaryMessageAccumulator:
         raw_memory_ids = []
         raw_memory_manager = RawMemoryManager()
 
-        # 收集所有需要插入的 raw_memory 数据（批量处理优化）
-        raw_memory_data_list = []
+        # 第一步：收集所有需要 OCR 处理的图片路径和元数据
+        ocr_tasks = []  # List of (local_file_path, metadata_dict)
 
         for timestamp, item in ready_to_process:
             if "image_uris" in item and item["image_uris"]:
@@ -624,61 +624,93 @@ class TemporaryMessageAccumulator:
                 for idx, image_uri in enumerate(image_uris):
                     source_app = sources[idx] if idx < len(sources) else "Unknown"
 
-                    try:
-                        # Get the original local path if available
-                        local_file_path = original_local_paths[idx] if idx < len(original_local_paths) else None
+                    # Get the original local path if available
+                    local_file_path = original_local_paths[idx] if idx < len(original_local_paths) else None
 
-                        # Fallback: if local_file_path is None and image_uri is a string (local path), use it
-                        if local_file_path is None and isinstance(image_uri, str):
-                            local_file_path = image_uri
+                    # Fallback: if local_file_path is None and image_uri is a string (local path), use it
+                    if local_file_path is None and isinstance(image_uri, str):
+                        local_file_path = image_uri
 
-                        # Get Google Cloud URL string if available
-                        google_cloud_url_str = None
-                        if hasattr(image_uri, "uri"):
-                            google_cloud_url_str = image_uri.uri
+                    # Get Google Cloud URL string if available
+                    google_cloud_url_str = None
+                    if hasattr(image_uri, "uri"):
+                        google_cloud_url_str = image_uri.uri
 
-                        # Extract OCR text and URLs from the screenshot using local path
-                        ocr_text = None
-                        urls = []
-                        if local_file_path and local_file_path != "None":
-                            try:
-                                ocr_text, urls = OCRUrlExtractor.extract_urls_and_text(local_file_path)
-                                self.logger.info(f"✅ OCR extracted {len(urls)} URLs and {len(ocr_text) if ocr_text else 0} chars from {local_file_path}")
-                            except Exception as ocr_error:
-                                self.logger.error(f"❌ OCR failed for {local_file_path}: {ocr_error}")
-                        else:
-                            self.logger.warning(f"⚠️  Cannot run OCR: No local file path available (path: {local_file_path})")
+                    # Parse timestamp
+                    captured_at = datetime.fromisoformat(timestamp) if isinstance(timestamp, str) else timestamp
 
-                        # Get the first URL as source_url (if any)
-                        source_url = urls[0] if urls else None
+                    # Prefer local file path, fallback to Google Cloud URL string
+                    screenshot_path = local_file_path if (local_file_path and local_file_path != "None") else (google_cloud_url_str or "unknown")
 
-                        # Parse timestamp
-                        captured_at = datetime.fromisoformat(timestamp) if isinstance(timestamp, str) else timestamp
+                    # 收集 OCR 任务和元数据
+                    ocr_tasks.append({
+                        "local_file_path": local_file_path,
+                        "screenshot_path": screenshot_path,
+                        "source_app": source_app,
+                        "captured_at": captured_at,
+                        "google_cloud_url": google_cloud_url_str,
+                        "batch_index": idx,
+                        "total_in_batch": len(image_uris),
+                    })
 
-                        # Prefer local file path, fallback to Google Cloud URL string
-                        screenshot_path = local_file_path if (local_file_path and local_file_path != "None") else (google_cloud_url_str or "unknown")
+        # 第二步：并行处理所有 OCR 任务（性能优化）
+        from concurrent.futures import ThreadPoolExecutor
 
-                        # 收集数据，而不是立即插入
-                        raw_memory_data_list.append({
-                            "actor": self.client.user,
-                            "screenshot_path": screenshot_path,
-                            "source_app": source_app,
-                            "captured_at": captured_at,
-                            "ocr_text": ocr_text if ocr_text else None,
-                            "source_url": source_url,
-                            "google_cloud_url": google_cloud_url_str,
-                            "metadata": {
-                                "batch_index": idx,
-                                "total_in_batch": len(image_uris),
-                            },
-                            "organization_id": self.client.user.organization_id,
-                        })
+        def process_single_ocr(task):
+            """处理单个 OCR 任务，返回 (task, ocr_text, urls)"""
+            local_file_path = task["local_file_path"]
+            ocr_text = None
+            urls = []
 
-                    except Exception as e:
-                        self.logger.error(f"❌ Failed to prepare screenshot data for raw_memory: {e}")
-                        import traceback
-                        traceback.print_exc()
-                        # Continue processing even if one screenshot fails
+            if local_file_path and local_file_path != "None":
+                try:
+                    ocr_text, urls = OCRUrlExtractor.extract_urls_and_text(local_file_path)
+                    self.logger.info(f"✅ OCR extracted {len(urls)} URLs and {len(ocr_text) if ocr_text else 0} chars from {local_file_path}")
+                except Exception as ocr_error:
+                    self.logger.error(f"❌ OCR failed for {local_file_path}: {ocr_error}")
+            else:
+                self.logger.warning(f"⚠️  Cannot run OCR: No local file path available (path: {local_file_path})")
+
+            return (task, ocr_text, urls)
+
+        # 并行执行 OCR（最多 4 个并发线程）
+        ocr_results = []
+        if ocr_tasks:
+            self.logger.info(f"🔄 Starting parallel OCR processing for {len(ocr_tasks)} images (max_workers=4)...")
+            with ThreadPoolExecutor(max_workers=4) as executor:
+                futures = [executor.submit(process_single_ocr, task) for task in ocr_tasks]
+                ocr_results = [f.result() for f in futures]
+            self.logger.info(f"✅ Parallel OCR completed for {len(ocr_results)} images")
+
+        # 第三步：构建 raw_memory 数据列表
+        raw_memory_data_list = []
+
+        for task, ocr_text, urls in ocr_results:
+            try:
+                # Get the first URL as source_url (if any)
+                source_url = urls[0] if urls else None
+
+                # 收集数据，而不是立即插入
+                raw_memory_data_list.append({
+                    "actor": self.client.user,
+                    "screenshot_path": task["screenshot_path"],
+                    "source_app": task["source_app"],
+                    "captured_at": task["captured_at"],
+                    "ocr_text": ocr_text if ocr_text else None,
+                    "source_url": source_url,
+                    "google_cloud_url": task["google_cloud_url"],
+                    "metadata": {
+                        "batch_index": task["batch_index"],
+                        "total_in_batch": task["total_in_batch"],
+                    },
+                    "organization_id": self.client.user.organization_id,
+                })
+
+            except Exception as e:
+                self.logger.error(f"❌ Failed to prepare screenshot data for raw_memory: {e}")
+                import traceback
+                traceback.print_exc()
+                # Continue processing even if one screenshot fails
 
         # 批量插入所有 raw_memory（性能优化：一次 commit）
         if raw_memory_data_list:
