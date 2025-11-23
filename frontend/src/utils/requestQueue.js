@@ -18,7 +18,8 @@ class RequestQueueManager {
     this.isProcessingQueue = false;
     
     // Maximum concurrent regular requests when streaming is active
-    this.maxConcurrentRegularRequests = 2;
+    // Increased from 2 to 10 to prevent queue timeout when loading multiple memory types
+    this.maxConcurrentRegularRequests = 10;
     this.currentRegularRequests = 0;
   }
 
@@ -108,8 +109,9 @@ class RequestQueueManager {
         
         const requestData = this.regularRequestQueue.shift();
         
-        // Check if request is too old (30 seconds) and reject it
-        if (Date.now() - requestData.timestamp > 30000) {
+        // Check if request is too old (60 seconds) and reject it
+        // Increased from 30s to 60s to accommodate slower API responses
+        if (Date.now() - requestData.timestamp > 60000) {
           requestData.reject(new Error('Request timeout - queued too long'));
           continue;
         }
