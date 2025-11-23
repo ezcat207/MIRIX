@@ -193,12 +193,12 @@ function App() {
   // Check for missing API keys on startup
   useEffect(() => {
     checkApiKeys();
-  }, [settings.serverUrl]);
+  }, [settings.serverUrl, checkApiKeys]);
 
   // Also check API keys when model changes
   useEffect(() => {
     checkApiKeys();
-  }, [settings.model]);
+  }, [settings.model, checkApiKeys]);
 
   // Initial backend health check on startup
   useEffect(() => {
@@ -248,18 +248,18 @@ function App() {
   useEffect(() => {
     const handleWindowFocus = async () => {
       console.log('🔍 Window focused - checking backend health silently...');
-      
+
       // Check backend health silently - only show modal if it actually fails
-      const healthCheckResult = await checkBackendHealth();
+      await checkBackendHealth();
       // Loading modal will be shown automatically by checkBackendHealth if it fails
     };
 
     const handleVisibilityChange = async () => {
       if (!document.hidden) {
         console.log('🔍 Document became visible - checking backend health silently...');
-        
+
         // Check backend health silently - only show modal if it actually fails
-        const healthCheckResult = await checkBackendHealth();
+        await checkBackendHealth();
         // Loading modal will be shown automatically by checkBackendHealth if it fails
       }
     };
@@ -327,18 +327,18 @@ function App() {
       // Handle Electron window events - check backend health silently
       const cleanupWindowShow = window.electronAPI.onWindowShow(async () => {
         console.log('🔍 Electron window shown - checking backend health silently...');
-        
+
         // Check backend health silently - only show modal if it actually fails
-        const healthCheckResult = await checkBackendHealth();
+        await checkBackendHealth();
         // Loading modal will be shown automatically by checkBackendHealth if it fails
       });
       cleanupFunctions.push(cleanupWindowShow);
 
       const cleanupAppActivate = window.electronAPI.onAppActivate(async () => {
         console.log('🔍 Electron app activated - checking backend health silently...');
-        
+
         // Check backend health silently - only show modal if it actually fails
-        const healthCheckResult = await checkBackendHealth();
+        await checkBackendHealth();
         // Loading modal will be shown automatically by checkBackendHealth if it fails
       });
       cleanupFunctions.push(cleanupAppActivate);
