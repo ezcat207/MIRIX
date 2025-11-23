@@ -227,10 +227,10 @@ function App() {
         const timeSinceLastCheck = Date.now() - (prev.lastCheckTime || 0);
 
         // Check more frequently when modal is visible, less frequently when not
-        // Optimized: When backend is healthy, check every 60s instead of 30s
+        // Optimized: When backend is healthy, check every 5 minutes instead of 60s
         const shouldCheck = prev.isVisible
           ? !prev.isChecking // Every 5 seconds when modal is visible (backend down)
-          : timeSinceLastCheck > 60000 && !prev.isChecking; // Every 60 seconds when modal is hidden (backend healthy)
+          : timeSinceLastCheck > 300000 && !prev.isChecking; // Every 5 minutes (300s) when modal is hidden (backend healthy)
 
         if (shouldCheck) {
           console.log('🔄 Periodic health check triggered. Modal visible:', prev.isVisible);
