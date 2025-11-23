@@ -213,12 +213,12 @@ class RawMemoryManager:
                 raw_memories.append(raw_memory)
 
             # 批量插入（一次 commit）
-            session.bulk_save_objects(raw_memories, return_defaults=True)
+            # 使用 add_all() 而不是 bulk_save_objects()，以保持对象与 session 的关联
+            session.add_all(raw_memories)
             session.commit()
 
-            # Refresh all objects to get database-generated values
-            for rm in raw_memories:
-                session.refresh(rm)
+            # 对象已经附加到 session，commit 后自动刷新，无需手动 refresh
+            # session.refresh() 只在需要重新加载关联对象时使用
 
             return raw_memories
 
