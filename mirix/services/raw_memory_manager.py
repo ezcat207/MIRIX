@@ -217,8 +217,13 @@ class RawMemoryManager:
             session.add_all(raw_memories)
             session.commit()
 
-            # 对象已经附加到 session，commit 后自动刷新，无需手动 refresh
-            # session.refresh() 只在需要重新加载关联对象时使用
+            # 在返回前，确保所有属性已加载到内存（访问一次 ID 属性）
+            # 这样 expunge 后对象仍可访问属性
+            for rm in raw_memories:
+                _ = rm.id  # 触发属性加载
+
+            # 将对象从 session 中分离，使其可以在 session 外部使用
+            session.expunge_all()
 
             return raw_memories
 
