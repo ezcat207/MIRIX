@@ -26,7 +26,7 @@ const ChatWindow = ({ settings, messages, setMessages, isScreenMonitoring }) => 
 
   // Calculate derived values from state early
   const hasActiveStreaming = activeStreamingRequests.size > 0;
-  const currentStreamingData = hasActiveStreaming 
+  const currentStreamingData = hasActiveStreaming
     ? Array.from(activeStreamingRequests.values())[activeStreamingRequests.size - 1]
     : null;
 
@@ -61,7 +61,7 @@ const ChatWindow = ({ settings, messages, setMessages, isScreenMonitoring }) => 
         console.error('Error loading screenshot setting:', error);
       }
     };
-    
+
     loadScreenshotSetting();
   }, [settings.serverUrl]);
 
@@ -82,7 +82,7 @@ const ChatWindow = ({ settings, messages, setMessages, isScreenMonitoring }) => 
         setCurrentModel(settings.model);
       }
     };
-    
+
     loadCurrentModel();
   }, [settings.serverUrl, settings.model]);
 
@@ -91,7 +91,7 @@ const ChatWindow = ({ settings, messages, setMessages, isScreenMonitoring }) => 
     const refreshBackendData = async () => {
       if (settings.lastBackendRefresh && settings.serverUrl) {
         console.log('ChatWindow: backend reconnected, refreshing data');
-        
+
         // Reload screenshot setting
         try {
           const response = await queuedFetch(`${settings.serverUrl}/screenshot_setting`);
@@ -102,9 +102,9 @@ const ChatWindow = ({ settings, messages, setMessages, isScreenMonitoring }) => 
         } catch (error) {
           console.error('Error reloading screenshot setting:', error);
         }
-        
 
-        
+
+
         // Reload current model
         try {
           const response = await queuedFetch(`${settings.serverUrl}/models/current`);
@@ -119,21 +119,57 @@ const ChatWindow = ({ settings, messages, setMessages, isScreenMonitoring }) => 
         }
       }
     };
-    
+
     refreshBackendData();
   }, [settings.lastBackendRefresh, settings.serverUrl, settings.model]);
+
+  // Load chat history on mount
+  useEffect(() => {
+    const loadChatHistory = async () => {
+      try {
+        const response = await queuedFetch(`${settings.serverUrl}/chat/history?limit=50`);
+        if (response.ok) {
+          const history = await response.json();
+          // Transform backend format to frontend format
+          const formattedHistory = history.map(msg => ({
+            id: msg.id,
+            type: msg.role,
+            content: msg.content,
+            images: msg.images || [],
+            thinkingSteps: msg.thinking_steps || [],
+            memoryReferences: msg.memory_references || [],
+            timestamp: msg.timestamp
+          }));
+
+          setMessages(prev => {
+            // Avoid duplicates if any (though on mount prev should be empty usually)
+            const existingIds = new Set(prev.map(m => m.id));
+            const newMessages = formattedHistory.filter(m => !existingIds.has(m.id));
+            // Combine history with any existing messages (history comes first)
+            return [...newMessages, ...prev];
+          });
+        }
+      } catch (error) {
+        console.error('Error loading chat history:', error);
+      }
+    };
+
+    if (settings.serverUrl) {
+      loadChatHistory();
+    }
+  }, [settings.serverUrl, setMessages]);
 
   // Function to save image files to local directory
   const saveImageToLocal = async (file) => {
     // Check if we're in Electron environment and handlers are available
-    const isElectronWithHandlers = window.electronAPI && 
+    const isElectronWithHandlers = window.electronAPI &&
       typeof window.electronAPI.saveImageToTmp === 'function' &&
       typeof window.electronAPI.saveImageBufferToTmp === 'function';
 
     if (!isElectronWithHandlers) {
       // For web environment or Electron without handlers, handle files appropriately
       console.log('Running in web mode or Electron handlers not ready, using web fallback');
-      
+
       if (file.file) {
         // For File objects in web environment, convert to base64 data URL
         try {
@@ -143,7 +179,7 @@ const ChatWindow = ({ settings, messages, setMessages, isScreenMonitoring }) => 
             reader.onerror = reject;
             reader.readAsDataURL(file.file);
           });
-          
+
           return {
             name: file.name,
             path: file.name, // Keep original filename for backend reference
@@ -165,7 +201,7 @@ const ChatWindow = ({ settings, messages, setMessages, isScreenMonitoring }) => 
           };
         }
       }
-      
+
       // For other file types or screenshots, return as-is with safe fallback
       return {
         name: file.name,
@@ -184,11 +220,11 @@ const ChatWindow = ({ settings, messages, setMessages, isScreenMonitoring }) => 
       const randomId = Math.random().toString(36).substr(2, 9);
       const extension = file.name.split('.').pop() || 'png';
       const uniqueFileName = `${timestamp}_${randomId}.${extension}`;
-      
+
       // For screenshots, the file.path is already the full path
       if (file.isScreenshot && file.path) {
         const savedPath = await window.electronAPI.saveImageToTmp(file.path, uniqueFileName);
-        
+
         // Also get base64 for display purposes (to avoid file:// security issues)
         let displayUrl = null;
         try {
@@ -201,7 +237,7 @@ const ChatWindow = ({ settings, messages, setMessages, isScreenMonitoring }) => 
         } catch (error) {
           console.warn('Could not read saved screenshot as base64:', error);
         }
-        
+
         return {
           name: file.name,
           path: savedPath, // File path for backend
@@ -212,13 +248,13 @@ const ChatWindow = ({ settings, messages, setMessages, isScreenMonitoring }) => 
           originalPath: file.path
         };
       }
-      
+
       // For regular uploaded files
       if (file.file) {
         // Convert File object to buffer for Electron
         const arrayBuffer = await file.file.arrayBuffer();
         const savedPath = await window.electronAPI.saveImageBufferToTmp(arrayBuffer, uniqueFileName);
-        
+
         // Also get base64 for display purposes (to avoid file:// security issues)
         let displayUrl = null;
         try {
@@ -231,7 +267,7 @@ const ChatWindow = ({ settings, messages, setMessages, isScreenMonitoring }) => 
         } catch (error) {
           console.warn('Could not read saved image as base64:', error);
         }
-        
+
         // Fallback to base64 from original file if reading saved file fails
         if (!displayUrl) {
           try {
@@ -245,7 +281,7 @@ const ChatWindow = ({ settings, messages, setMessages, isScreenMonitoring }) => 
             console.warn('Could not create base64 from original file:', error);
           }
         }
-        
+
         return {
           name: file.name,
           path: savedPath, // File path for backend
@@ -256,11 +292,11 @@ const ChatWindow = ({ settings, messages, setMessages, isScreenMonitoring }) => 
           originalPath: file.path
         };
       }
-      
+
       // For files with existing paths
       if (file.path) {
         const savedPath = await window.electronAPI.saveImageToTmp(file.path, uniqueFileName);
-        
+
         // Also get base64 for display purposes (to avoid file:// security issues)
         let displayUrl = null;
         try {
@@ -273,7 +309,7 @@ const ChatWindow = ({ settings, messages, setMessages, isScreenMonitoring }) => 
         } catch (error) {
           console.warn('Could not read saved file as base64:', error);
         }
-        
+
         return {
           name: file.name,
           path: savedPath, // File path for backend
@@ -284,7 +320,7 @@ const ChatWindow = ({ settings, messages, setMessages, isScreenMonitoring }) => 
           originalPath: file.path
         };
       }
-      
+
       return file;
     } catch (error) {
       console.error('Error saving image to local directory:', error);
@@ -297,7 +333,7 @@ const ChatWindow = ({ settings, messages, setMessages, isScreenMonitoring }) => 
             reader.onerror = reject;
             reader.readAsDataURL(file.file);
           });
-          
+
           return {
             name: file.name,
             path: file.path || file.name,
@@ -312,7 +348,7 @@ const ChatWindow = ({ settings, messages, setMessages, isScreenMonitoring }) => 
           console.error('Fallback file processing also failed:', fallbackError);
         }
       }
-      
+
       return file; // Final fallback to original file
     }
   };
@@ -334,14 +370,14 @@ const ChatWindow = ({ settings, messages, setMessages, isScreenMonitoring }) => 
     };
 
     setMessages(prev => [...prev, userMessage]);
-    
+
     // Generate unique request ID for this specific message
     const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
+
     // Create abort controller for this request
     const abortController = new AbortController();
     abortControllersRef.current.set(requestId, abortController);
-    
+
     // Add to active streaming requests
     setActiveStreamingRequests(prev => new Map([...prev, [requestId, { streamingContent: '' }]]));
 
@@ -389,7 +425,7 @@ const ChatWindow = ({ settings, messages, setMessages, isScreenMonitoring }) => 
 
       while (true) {
         const { done, value } = await reader.read();
-        
+
         if (done) break;
 
         buffer += decoder.decode(value, { stream: true });
@@ -400,7 +436,7 @@ const ChatWindow = ({ settings, messages, setMessages, isScreenMonitoring }) => 
           if (line.startsWith('data: ')) {
             try {
               const data = JSON.parse(line.slice(6));
-              
+
               if (data.type === 'intermediate') {
                 // Update streaming content for this specific request
                 setActiveStreamingRequests(prev => {
@@ -408,7 +444,7 @@ const ChatWindow = ({ settings, messages, setMessages, isScreenMonitoring }) => 
                   const current = updated.get(requestId);
                   if (current) {
                     const currentState = { ...current };
-                    
+
                     if (data.message_type === 'internal_monologue') {
                       // Handle thinking messages separately
                       if (!currentState.thinkingSteps) {
@@ -423,7 +459,7 @@ const ChatWindow = ({ settings, messages, setMessages, isScreenMonitoring }) => 
                       // Handle response content
                       currentState.streamingContent = (currentState.streamingContent || '') + data.content;
                     }
-                    
+
                     updated.set(requestId, currentState);
                   }
                   return updated;
@@ -481,9 +517,9 @@ const ChatWindow = ({ settings, messages, setMessages, isScreenMonitoring }) => 
         updated.delete(requestId);
         return updated;
       });
-      
+
       abortControllersRef.current.delete(requestId);
-      
+
       // Call cleanup to notify request queue
       if (cleanup) {
         cleanup();
@@ -504,7 +540,7 @@ const ChatWindow = ({ settings, messages, setMessages, isScreenMonitoring }) => 
 
   const clearChatPermanent = async () => {
     setIsClearing(true);
-    
+
     try {
       const response = await queuedFetch(`${settings.serverUrl}/conversation/clear`, {
         method: 'POST',
@@ -518,10 +554,10 @@ const ChatWindow = ({ settings, messages, setMessages, isScreenMonitoring }) => 
       }
 
       const result = await response.json();
-      
+
       // Clear local messages too
       setMessages([]);
-      
+
       // Abort all active requests
       abortControllersRef.current.forEach((controller) => {
         controller.abort();
@@ -532,7 +568,7 @@ const ChatWindow = ({ settings, messages, setMessages, isScreenMonitoring }) => 
       setShowClearModal(false);
     } catch (error) {
       console.error('Error clearing conversation:', error);
-      
+
       // Show error message
       const errorMessage = {
         id: Date.now(),
@@ -559,7 +595,7 @@ const ChatWindow = ({ settings, messages, setMessages, isScreenMonitoring }) => 
 
   const handleConfirmationResponse = async (confirmed) => {
     if (!confirmationRequest) return;
-    
+
     try {
       const response = await queuedFetch(`${settings.serverUrl}/confirmation/respond`, {
         method: 'POST',
@@ -640,7 +676,7 @@ const ChatWindow = ({ settings, messages, setMessages, isScreenMonitoring }) => 
           <span className="persona-info">{t('chat.persona')}: {settings.persona}</span>
         </div>
         <div className="chat-actions">
-          <button 
+          <button
             className={`screenshot-toggle ${includeScreenshots ? 'enabled' : 'disabled'}`}
             onClick={toggleScreenshotSetting}
             title={includeScreenshots ? t('chat.screenshotTooltip.enabled') : t('chat.screenshotTooltip.disabled')}
@@ -648,7 +684,7 @@ const ChatWindow = ({ settings, messages, setMessages, isScreenMonitoring }) => 
             📷 {includeScreenshots ? t('chat.screenshotOn') : t('chat.screenshotOff')}
           </button>
           {hasActiveStreaming && (
-            <button 
+            <button
               className="stop-button"
               onClick={stopGeneration}
               title={t('chat.stopTitle')}
@@ -656,53 +692,53 @@ const ChatWindow = ({ settings, messages, setMessages, isScreenMonitoring }) => 
               ⏹️ {t('chat.stop')}
             </button>
           )}
-                      <button 
-              className="clear-button"
-              onClick={handleClearClick}
-              title={t('chat.clearTitle')}
-            >
-              🗑️ {t('chat.clear')}
-            </button>
+          <button
+            className="clear-button"
+            onClick={handleClearClick}
+            title={t('chat.clearTitle')}
+          >
+            🗑️ {t('chat.clear')}
+          </button>
+        </div>
+      </div>
+
+      <div className="messages-container">
+        {messages.length === 0 && (
+          <div className="welcome-message">
+            <h2>{t('chat.welcome.title')}</h2>
+            <p>{t('chat.welcome.subtitle')}</p>
+            {window.electronAPI ? (
+              <p>💡 {t('chat.welcome.desktop')}</p>
+            ) : (
+              <p>💡 {t('chat.welcome.web')}</p>
+            )}
           </div>
-        </div>
+        )}
 
-        <div className="messages-container">
-          {messages.length === 0 && (
-            <div className="welcome-message">
-              <h2>{t('chat.welcome.title')}</h2>
-              <p>{t('chat.welcome.subtitle')}</p>
-              {window.electronAPI ? (
-                <p>💡 {t('chat.welcome.desktop')}</p>
-              ) : (
-                <p>💡 {t('chat.welcome.web')}</p>
-              )}
-            </div>
-          )}
-          
-          {messages.map(message => (
-            <ChatBubble key={message.id} message={message} />
-          ))}
-          
-          {currentStreamingData && (
-            <ChatBubble 
-              message={{
-                id: 'streaming',
-                type: 'assistant',
-                content: currentStreamingData.streamingContent || '',
-                thinkingSteps: currentStreamingData.thinkingSteps || [],
-                timestamp: new Date().toISOString(),
-                isStreaming: true
-              }} 
-            />
-          )}
-          
-          <div ref={messagesEndRef} />
-        </div>
+        {messages.map(message => (
+          <ChatBubble key={message.id} message={message} />
+        ))}
 
-        <MessageInput 
-          onSendMessage={sendMessage}
-          disabled={hasActiveStreaming}
-        />
+        {currentStreamingData && (
+          <ChatBubble
+            message={{
+              id: 'streaming',
+              type: 'assistant',
+              content: currentStreamingData.streamingContent || '',
+              thinkingSteps: currentStreamingData.thinkingSteps || [],
+              timestamp: new Date().toISOString(),
+              isStreaming: true
+            }}
+          />
+        )}
+
+        <div ref={messagesEndRef} />
+      </div>
+
+      <MessageInput
+        onSendMessage={sendMessage}
+        disabled={hasActiveStreaming}
+      />
 
       <ApiKeyModal
         isOpen={showApiKeyModal}
@@ -760,14 +796,14 @@ const ChatWindow = ({ settings, messages, setMessages, isScreenMonitoring }) => 
               </div>
             </div>
             <div className="modal-actions">
-              <button 
-                className="action-button cancel-button" 
+              <button
+                className="action-button cancel-button"
                 onClick={() => handleConfirmationResponse(false)}
               >
                 ❌ Cancel
               </button>
-              <button 
-                className="action-button confirm-button" 
+              <button
+                className="action-button confirm-button"
                 onClick={() => handleConfirmationResponse(true)}
               >
                 ✅ Send Email

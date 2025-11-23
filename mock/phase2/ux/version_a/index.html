@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>MIRIX RPG // HERO'S JOURNEY</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="../shared_data.js"></script>
+</head>
+
+<body>
+    <div class="game-container">
+        <!-- Header -->
+        <div class="header">
+            <div class="player-info">
+                <div class="avatar">🧙‍♂️</div>
+                <div>
+                    <div style="font-weight: bold; color: var(--text-gold);" id="player-name">--</div>
+                    <div style="font-size: 12px; color: #aaa;" id="player-class">--</div>
+                </div>
+                <div class="level-badge" id="player-level">LVL --</div>
+            </div>
+            <div style="text-align: right;">
+                <div style="font-size: 12px; color: #aaa;">CURRENT QUEST</div>
+                <div style="color: var(--accent-green);">PHASE 2: AWAKENING</div>
+            </div>
+        </div>
+
+        <!-- Character Sheet -->
+        <div class="char-sheet">
+            <div class="section-title">Attributes</div>
+
+            <div class="stat-row">
+                <span class="stat-label">INT (Learning) <span style="float:right" id="stat-int">--</span></span>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 85%; background-color: #4444ff;"></div>
+                </div>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">CHA (Comm.) <span style="float:right" id="stat-cha">--</span></span>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 42%; background-color: #ff44ff;"></div>
+                </div>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">END (Action) <span style="float:right" id="stat-end">--</span></span>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 60%; background-color: #ff4444;"></div>
+                </div>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">CRT (Build) <span style="float:right" id="stat-crt">--</span></span>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 75%; background-color: #44ff44;"></div>
+                </div>
+            </div>
+
+            <div style="margin-top: 30px;">
+                <div class="section-title">XP Progress</div>
+                <div style="font-size: 12px; text-align: right; margin-bottom: 5px;" id="xp-text">-- / --</div>
+                <div class="progress-bar" style="height: 15px; border-color: var(--text-gold);">
+                    <div class="progress-fill" style="width: 0%; background-color: var(--text-gold);" id="xp-bar"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quest Board -->
+        <div class="quest-board">
+            <div class="section-title">Active Quests</div>
+            <div id="quest-list">
+                <!-- Populated by JS -->
+            </div>
+
+            <div class="section-title" style="margin-top: 30px;">Daily Commissions</div>
+            <div id="daily-list">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+
+        <!-- Adventure Log -->
+        <div class="log-panel" id="adventure-log">
+            <div class="log-entry">> System initialized...</div>
+            <div class="log-entry">> Welcome back, Hero.</div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const data = SHARED_DATA;
+
+            // Player Info
+            document.getElementById('player-name').textContent = data.user.name;
+            document.getElementById('player-class').textContent = data.user.class;
+            document.getElementById('player-level').textContent = "LVL " + data.user.level;
+
+            // Stats
+            document.getElementById('stat-int').textContent = data.user.attributes.intelligence;
+            document.getElementById('stat-cha').textContent = data.user.attributes.charisma;
+            document.getElementById('stat-end').textContent = data.user.attributes.endurance;
+            document.getElementById('stat-crt').textContent = data.user.attributes.creativity;
+
+            // XP
+            document.getElementById('xp-text').textContent = `${data.user.xp.current} / ${data.user.xp.max}`;
+            document.getElementById('xp-bar').style.width = (data.user.xp.current / data.user.xp.max * 100) + '%';
+
+            // Quests (Goals)
+            const questList = document.getElementById('quest-list');
+            data.goals.forEach(g => {
+                const card = document.createElement('div');
+                card.className = 'quest-card active';
+                card.innerHTML = `
+                    <div class="quest-title">${g.rpg_context.quest_name}</div>
+                    <div class="quest-reward">Reward: ${g.rpg_context.reward}</div>
+                    <div class="quest-progress">Progress: ${g.progress}%</div>
+                    <div class="progress-bar" style="margin-top:5px; height:5px;">
+                        <div class="progress-fill" style="width: ${g.progress}%; background-color: var(--accent-green);"></div>
+                    </div>
+                `;
+                questList.appendChild(card);
+            });
+
+            // Daily Tasks
+            const dailyList = document.getElementById('daily-list');
+            data.daily_tasks.forEach(t => {
+                const card = document.createElement('div');
+                card.className = 'quest-card';
+                if (t.completed) card.style.opacity = '0.5';
+
+                card.innerHTML = `
+                    <div style="display:flex; justify-content:space-between;">
+                        <div class="quest-title" style="font-size:14px;">${t.title}</div>
+                        <div style="color:var(--text-gold);">${t.rpg_val}</div>
+                    </div>
+                    ${!t.completed ? '<button class="btn">COMPLETE</button>' : '<span style="color:#aaa;">[COMPLETED]</span>'}
+                `;
+                dailyList.appendChild(card);
+            });
+
+            // Log
+            const log = document.getElementById('adventure-log');
+            data.insights.forEach(ins => {
+                const entry = document.createElement('div');
+                entry.className = `log-entry ${ins.type === 'success' ? 'buff' : 'debuff'}`;
+                entry.textContent = `> ${ins.rpg_msg}`;
+                log.appendChild(entry);
+            });
+        });
+    </script>
+</body>
+
+</html>

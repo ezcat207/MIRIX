@@ -712,6 +712,56 @@ async def send_message_endpoint(request: MessageRequest):
         )
 
 
+
+class ChatMessageResponse(BaseModel):
+    id: str
+    role: str
+    content: str
+    images: Optional[List[Any]] = None
+    thinking_steps: Optional[List[Any]] = None
+    memory_references: Optional[List[Any]] = None
+    timestamp: str
+
+
+@app.get("/chat/history", response_model=List[ChatMessageResponse])
+async def get_chat_history(limit: int = 50, offset: int = 0):
+    """Get chat history with pagination"""
+    from mirix.orm.chat_history import ChatMessage
+    from mirix.server.server import db_context
+    from sqlalchemy import desc
+
+    try:
+        with db_context() as session:
+            messages = (
+                session.query(ChatMessage)
+                .order_by(desc(ChatMessage.created_at))
+                .limit(limit)
+                .offset(offset)
+                .all()
+            )
+
+            # Reverse to show oldest first (chronological order)
+            messages.reverse()
+
+            return [
+                ChatMessageResponse(
+                    id=msg.id,
+                    role=msg.role,
+                    content=msg.content or "",
+                    images=msg.images,
+                    thinking_steps=msg.thinking_steps,
+                    memory_references=msg.memory_references,
+                    timestamp=msg.created_at.isoformat()
+                    if msg.created_at
+                    else datetime.utcnow().isoformat(),
+                )
+                for msg in messages
+            ]
+    except Exception as e:
+        logger.error(f"Error fetching chat history: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/send_streaming_message")
 async def send_streaming_message_endpoint(request: MessageRequest):
     """Send a message to the agent and stream intermediate messages and final response"""
@@ -791,6 +841,26 @@ async def send_streaming_message_endpoint(request: MessageRequest):
         try:
             # Start the agent processing in a separate thread
             result_queue = queue.Queue()
+            
+            # Initialize thinking steps collection
+            thinking_steps = []
+
+            # Save user message to DB
+            try:
+                from mirix.orm.chat_history import ChatMessage
+                from mirix.server.server import db_context
+                
+                if request.message:
+                    with db_context() as session:
+                        user_msg = ChatMessage(
+                            role="user",
+                            content=request.message,
+                            images=request.image_uris,
+                        )
+                        session.add(user_msg)
+                        session.commit()
+            except Exception as e:
+                print(f"Error saving user message: {e}")
 
             async def run_agent():
                 try:
@@ -970,6 +1040,14 @@ async def send_streaming_message_endpoint(request: MessageRequest):
                 # Check for intermediate messages first
                 try:
                     intermediate_msg = message_queue.get_nowait()
+                    
+                    # Collect thinking steps
+                    if intermediate_msg.get("message_type") == "internal_monologue":
+                         thinking_steps.append({
+                             "content": intermediate_msg.get("content"),
+                             "timestamp": datetime.utcnow().isoformat()
+                         })
+                         
                     yield f"data: {json.dumps(intermediate_msg)}\n\n"
                     continue  # Continue to next iteration to check for more messages
                 except queue.Empty:
@@ -982,6 +1060,23 @@ async def send_streaming_message_endpoint(request: MessageRequest):
                     if final_result["type"] == "error":
                         yield f"data: {json.dumps({'type': 'error', 'error': final_result['error']})}\n\n"
                     else:
+                        # Save assistant message to DB
+                        try:
+                            from mirix.orm.chat_history import ChatMessage
+                            from mirix.server.server import db_context
+                            
+                            with db_context() as session:
+                                asst_msg = ChatMessage(
+                                    role="assistant",
+                                    content=final_result['response'],
+                                    thinking_steps=thinking_steps,
+                                    memory_references=final_result.get('memoryReferences')
+                                )
+                                session.add(asst_msg)
+                                session.commit()
+                        except Exception as e:
+                            print(f"Error saving assistant message: {e}")
+
                         # Include memoryReferences if present
                         response_data = {
                             'type': 'final',

@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MIRIX FOUNDRY // PHASE 2</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="mock_data.js"></script>
+</head>
+<body>
+    <header>
+        <div class="logo">MIRIX FOUNDRY // PERSONAL OPERATING SYSTEM</div>
+    </header>
+
+    <div class="main-container">
+        <div class="sidebar">
+            <div class="nav-item active" title="Network Graph">🕸️</div>
+            <div class="nav-item" title="Communication Analysis">💬</div>
+            <div class="nav-item" title="System Evolution">⚙️</div>
+        </div>
+
+        <div class="dashboard">
+            <!-- Panel 1: Network Graph -->
+            <div class="panel" style="grid-row: span 2;">
+                <div class="panel-header">
+                    <span class="panel-title">Social Ontology Graph</span>
+                    <span class="tag">LIVE</span>
+                </div>
+                <div class="panel-content" style="padding: 0; overflow: hidden;">
+                    <div id="network-graph">
+                        <!-- Graph will be rendered here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Panel 2: Key Metrics -->
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title">Network Velocity</span>
+                </div>
+                <div class="panel-content">
+                    <div class="metric-row">
+                        <span class="metric-label">New Nodes (Weekly)</span>
+                        <span class="metric-value" id="net-velocity">--</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Total Nodes</span>
+                        <span class="metric-value" id="net-total">--</span>
+                    </div>
+                    <div style="margin-top: 15px;">
+                        <span class="panel-title" style="font-size: 10px;">RECENT CONNECTIONS</span>
+                        <table style="margin-top: 5px;">
+                            <thead>
+                                <tr><th>Name</th><th>Role</th><th>Tag</th></tr>
+                            </thead>
+                            <tbody id="recent-connections-table">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Panel 3: Communication Analysis -->
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title">Comm. Analysis</span>
+                </div>
+                <div class="panel-content">
+                    <div class="metric-row">
+                        <span class="metric-label">Weekly Structure Score</span>
+                        <span class="metric-value" id="comm-score">--</span>
+                    </div>
+                    <div id="comm-insights" style="margin-top: 10px;">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Panel 4: System Evolution (Full Width) -->
+            <div class="panel" style="grid-column: span 2;">
+                <div class="panel-header">
+                    <span class="panel-title">System Evolution Roadmap</span>
+                    <span class="tag" id="sys-phase">--</span>
+                </div>
+                <div class="panel-content" style="display: flex; gap: 20px;">
+                    <div style="flex: 1;">
+                        <div class="metric-row">
+                            <span class="metric-label">Next Milestone</span>
+                            <span class="metric-value" id="sys-milestone">--</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">Progress</span>
+                            <span class="metric-value" id="sys-progress">--</span>
+                        </div>
+                    </div>
+                    <div style="flex: 2; border-left: 1px solid #30404d; padding-left: 20px;">
+                        <span class="panel-title" style="font-size: 10px; display: block; margin-bottom: 10px;">RECENT COMMITS</span>
+                        <div id="sys-commits">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Render Data
+        document.addEventListener('DOMContentLoaded', () => {
+            const data = MOCK_DATA;
+
+            // Network Metrics
+            document.getElementById('net-velocity').textContent = data.network.velocity;
+            document.getElementById('net-total').textContent = data.network.total_nodes;
+
+            // Recent Connections Table
+            const connTable = document.getElementById('recent-connections-table');
+            data.network.recent_connections.forEach(p => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td>${p.name}</td><td>${p.role}</td><td><span class="tag">${p.tag}</span></td>`;
+                connTable.appendChild(tr);
+            });
+
+            // Communication Metrics
+            document.getElementById('comm-score').textContent = data.communication.weekly_score;
+            const insightsContainer = document.getElementById('comm-insights');
+            data.communication.insights.forEach(ins => {
+                const div = document.createElement('div');
+                div.className = `insight-item ${ins.type}`;
+                div.textContent = ins.text;
+                insightsContainer.appendChild(div);
+            });
+
+            // System Metrics
+            document.getElementById('sys-phase').textContent = data.system_building.phase;
+            document.getElementById('sys-milestone').textContent = data.system_building.next_milestone;
+            document.getElementById('sys-progress').textContent = data.system_building.progress + '%';
+
+            // Commits
+            const commitsContainer = document.getElementById('sys-commits');
+            data.system_building.recent_commits.forEach(c => {
+                const div = document.createElement('div');
+                div.className = 'timeline-item';
+                div.innerHTML = `
+                    <div class="timeline-time">${c.time}</div>
+                    <div class="timeline-content">
+                        <div class="timeline-msg">${c.msg}</div>
+                    </div>
+                `;
+                commitsContainer.appendChild(div);
+            });
+
+            // Render Simple Graph
+            renderGraph(data.network);
+        });
+
+        function renderGraph(networkData) {
+            const container = document.getElementById('network-graph');
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+            
+            // Simple force-directed simulation mock (static positions for now)
+            // Center (You)
+            const centerX = width / 2;
+            const centerY = height / 2;
+
+            // Create SVG
+            const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+            svg.setAttribute("width", "100%");
+            svg.setAttribute("height", "100%");
+            container.appendChild(svg);
+
+            // Helper to map nodes to positions (simple radial layout)
+            const nodePositions = {};
+            const nodes = networkData.graph_nodes;
+            
+            nodes.forEach((node, i) => {
+                if (node.group === 'center') {
+                    nodePositions[node.id] = { x: centerX, y: centerY, color: '#2B95D6', size: 8 };
+                } else {
+                    const angle = (i / nodes.length) * 2 * Math.PI;
+                    const radius = node.group === 'goal' ? 80 : 160;
+                    nodePositions[node.id] = {
+                        x: centerX + Math.cos(angle) * radius,
+                        y: centerY + Math.sin(angle) * radius,
+                        color: node.group === 'goal' ? '#DB3737' : (node.group === 'skill' ? '#0F9960' : '#5C7080'),
+                        size: node.group === 'goal' ? 6 : 4
+                    };
+                }
+            });
+
+            // Draw Edges
+            networkData.graph_edges.forEach(edge => {
+                const start = nodePositions[edge.from];
+                const end = nodePositions[edge.to];
+                
+                const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                line.setAttribute("x1", start.x);
+                line.setAttribute("y1", start.y);
+                line.setAttribute("x2", end.x);
+                line.setAttribute("y2", end.y);
+                line.setAttribute("stroke", "#30404d");
+                line.setAttribute("stroke-width", "1");
+                svg.appendChild(line);
+            });
+
+            // Draw Nodes
+            nodes.forEach(node => {
+                const pos = nodePositions[node.id];
+                
+                const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                circle.setAttribute("cx", pos.x);
+                circle.setAttribute("cy", pos.y);
+                circle.setAttribute("r", pos.size);
+                circle.setAttribute("fill", pos.color);
+                circle.setAttribute("class", "node");
+                svg.appendChild(circle);
+
+                const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                text.setAttribute("x", pos.x);
+                text.setAttribute("y", pos.y - 10);
+                text.setAttribute("text-anchor", "middle");
+                text.setAttribute("fill", "#a7b6c2");
+                text.setAttribute("font-size", "10");
+                text.setAttribute("font-family", "monospace");
+                text.textContent = node.label;
+                svg.appendChild(text);
+            });
+        }
+    </script>
+</body>
+</html>

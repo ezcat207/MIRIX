@@ -23,3 +23,4 @@ from mirix.orm.tool import Tool
 from mirix.orm.tools_agents import ToolsAgents
 from mirix.orm.user import User
 from mirix.orm.work_session import WorkSession
+from mirix.orm.chat_history import ChatMessage

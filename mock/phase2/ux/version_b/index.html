@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>MIRIX COCKPIT // FLIGHT DECK</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="../shared_data.js"></script>
+</head>
+
+<body>
+    <div class="cockpit-container">
+        <!-- Top Bar -->
+        <div class="top-bar">
+            <div class="status-indicator">
+                <div class="led"></div>
+                <span>SYSTEM ONLINE</span>
+            </div>
+            <div id="clock">00:00:00</div>
+            <div class="mode-switch" onclick="toggleMode()">MODE: CRUISE</div>
+        </div>
+
+        <!-- Left Panel: Navigation -->
+        <div class="hud-panel nav-panel">
+            <div class="hud-title">NAVIGATION</div>
+            <div id="goal-list">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+
+        <!-- Center View: Focus -->
+        <div class="center-view">
+            <div class="focus-reticle">
+                <div class="current-task" id="focus-task">--</div>
+                <div class="task-meta" id="focus-meta">--</div>
+                <div style="margin-top: 20px; font-size: 12px; color: var(--hud-green);">
+                    [ ACTION REQUIRED ]
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel: Systems -->
+        <div class="hud-panel sys-panel">
+            <div class="hud-title">SYSTEMS</div>
+
+            <div class="gauge-row">
+                <span>ENERGY</span>
+                <div class="gauge-bar">
+                    <div class="gauge-fill" style="width: 80%;"></div>
+                </div>
+            </div>
+            <div class="gauge-row">
+                <span>FOCUS</span>
+                <div class="gauge-bar">
+                    <div class="gauge-fill" style="width: 95%;"></div>
+                </div>
+            </div>
+
+            <div style="margin-top: 20px; border-top: 1px solid var(--hud-dim); padding-top: 10px;">
+                <div class="hud-title" style="background-color: transparent; color: var(--hud-green); padding: 0;">
+                    TELEMETRY</div>
+                <div id="telemetry-log" style="font-size: 10px; color: var(--hud-amber);">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Bar: Alerts -->
+        <div class="alert-panel">
+            <span style="color: var(--hud-red); font-weight: bold;">WARNINGS:</span>
+            <div id="alert-ticker" style="flex: 1;">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const data = SHARED_DATA;
+
+            // Clock
+            setInterval(() => {
+                const now = new Date();
+                document.getElementById('clock').textContent = now.toLocaleTimeString();
+            }, 1000);
+
+            // Goals (Nav)
+            const goalList = document.getElementById('goal-list');
+            data.goals.forEach((g, index) => {
+                const div = document.createElement('div');
+                div.className = `goal-item ${index === 0 ? 'active' : ''}`;
+                div.innerHTML = `
+                    <div class="goal-name">${g.cockpit_context.module}</div>
+                    <div class="goal-metric">Signal: ${g.cockpit_context.signal_strength || g.cockpit_context.integrity}</div>
+                `;
+                goalList.appendChild(div);
+            });
+
+            // Focus Task
+            const activeTask = data.daily_tasks.find(t => !t.completed) || data.daily_tasks[0];
+            document.getElementById('focus-task').textContent = activeTask.title;
+            document.getElementById('focus-meta').textContent = `Input: ${activeTask.cockpit_val}`;
+
+            // Telemetry
+            const telemetry = document.getElementById('telemetry-log');
+            data.daily_tasks.forEach(t => {
+                const div = document.createElement('div');
+                div.style.marginBottom = '5px';
+                div.textContent = `> ${t.id.toUpperCase()}: ${t.completed ? 'COMPLETE' : 'PENDING'}`;
+                if (t.completed) div.style.color = 'var(--hud-dim)';
+                telemetry.appendChild(div);
+            });
+
+            // Alerts
+            const alerts = document.getElementById('alert-ticker');
+            data.insights.forEach(ins => {
+                const span = document.createElement('span');
+                span.className = 'alert-msg';
+                span.style.marginRight = '20px';
+                span.style.color = ins.type === 'warning' ? 'var(--hud-red)' : 'var(--hud-green)';
+                span.textContent = ins.cockpit_msg;
+                alerts.appendChild(span);
+            });
+        });
+
+        function toggleMode() {
+            alert("Mode switching simulation: Would toggle between 'Academy' and 'Forge' workspaces.");
+        }
+    </script>
+</body>
+
+</html>

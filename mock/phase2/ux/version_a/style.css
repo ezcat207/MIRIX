@@ -1,0 +1,197 @@
+:root {
+    --bg-dark: #1a1a1a;
+    --bg-panel: #2d2d2d;
+    --text-gold: #ffd700;
+    --text-white: #ffffff;
+    --accent-red: #ff4444;
+    --accent-blue: #4444ff;
+    --accent-green: #44ff44;
+    --border-gold: #c5a000;
+    --font-game: 'Courier New', monospace;
+    /* Placeholder for pixel font */
+}
+
+body {
+    background-color: var(--bg-dark);
+    color: var(--text-white);
+    font-family: var(--font-game);
+    margin: 0;
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+    height: 100vh;
+    box-sizing: border-box;
+    background-image: radial-gradient(circle, #2a2a2a 0%, #1a1a1a 100%);
+}
+
+.game-container {
+    width: 1000px;
+    height: 800px;
+    background-color: var(--bg-panel);
+    border: 4px solid var(--border-gold);
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    grid-template-rows: 100px 1fr 150px;
+    gap: 10px;
+    padding: 10px;
+}
+
+/* Header / Top Bar */
+.header {
+    grid-column: 1 / -1;
+    border-bottom: 2px solid var(--border-gold);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 20px;
+    background: linear-gradient(to bottom, #3d3d3d, #2d2d2d);
+}
+
+.player-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.avatar {
+    width: 60px;
+    height: 60px;
+    background-color: #000;
+    border: 2px solid var(--border-gold);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 30px;
+}
+
+.level-badge {
+    background-color: var(--border-gold);
+    color: #000;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-weight: bold;
+}
+
+/* Character Sheet (Left) */
+.char-sheet {
+    grid-row: 2 / 3;
+    border-right: 2px solid var(--border-gold);
+    padding: 20px;
+    background-color: rgba(0, 0, 0, 0.2);
+}
+
+.stat-row {
+    margin-bottom: 15px;
+}
+
+.stat-label {
+    color: var(--text-gold);
+    margin-bottom: 5px;
+    display: block;
+}
+
+.progress-bar {
+    height: 10px;
+    background-color: #000;
+    border: 1px solid #555;
+    position: relative;
+}
+
+.progress-fill {
+    height: 100%;
+    background-color: var(--accent-blue);
+    width: 0%;
+    transition: width 0.5s;
+}
+
+/* Quest Board (Right) */
+.quest-board {
+    grid-row: 2 / 3;
+    padding: 20px;
+    overflow-y: auto;
+}
+
+.section-title {
+    color: var(--text-gold);
+    text-transform: uppercase;
+    border-bottom: 1px solid #555;
+    padding-bottom: 5px;
+    margin-bottom: 15px;
+    font-size: 18px;
+}
+
+.quest-card {
+    background-color: #3a3a3a;
+    border: 1px solid #555;
+    padding: 15px;
+    margin-bottom: 15px;
+    position: relative;
+    transition: transform 0.2s;
+}
+
+.quest-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--text-gold);
+}
+
+.quest-card.active {
+    border-left: 4px solid var(--accent-green);
+}
+
+.quest-title {
+    font-size: 16px;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.quest-reward {
+    font-size: 12px;
+    color: var(--text-gold);
+}
+
+.quest-progress {
+    margin-top: 10px;
+    font-size: 12px;
+    color: #aaa;
+}
+
+/* Log / Bottom */
+.log-panel {
+    grid-column: 1 / -1;
+    border-top: 2px solid var(--border-gold);
+    padding: 10px;
+    background-color: #000;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    overflow-y: auto;
+    color: #aaa;
+}
+
+.log-entry {
+    margin-bottom: 5px;
+}
+
+.log-entry.buff {
+    color: var(--accent-green);
+}
+
+.log-entry.debuff {
+    color: var(--accent-red);
+}
+
+/* Buttons */
+.btn {
+    background-color: var(--border-gold);
+    color: #000;
+    border: none;
+    padding: 5px 10px;
+    cursor: pointer;
+    font-family: var(--font-game);
+    font-weight: bold;
+    margin-top: 5px;
+}
+
+.btn:hover {
+    background-color: #fff;
+}

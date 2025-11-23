@@ -1,0 +1,239 @@
+:root {
+    --bg-cockpit: #0a0f14;
+    --hud-green: #00ff41;
+    --hud-amber: #ffb000;
+    --hud-red: #ff0000;
+    --hud-dim: #003311;
+    --font-hud: 'Consolas', 'Monaco', monospace;
+}
+
+body {
+    background-color: var(--bg-cockpit);
+    color: var(--hud-green);
+    font-family: var(--font-hud);
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.cockpit-container {
+    width: 100%;
+    height: 100%;
+    display: grid;
+    grid-template-columns: 300px 1fr 300px;
+    grid-template-rows: 60px 1fr 100px;
+    gap: 2px;
+    background-image:
+        linear-gradient(rgba(0, 255, 65, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 255, 65, 0.03) 1px, transparent 1px);
+    background-size: 20px 20px;
+}
+
+/* HUD Panels */
+.hud-panel {
+    border: 1px solid var(--hud-dim);
+    padding: 15px;
+    background-color: rgba(0, 20, 0, 0.4);
+    position: relative;
+}
+
+.hud-panel::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 10px;
+    height: 10px;
+    border-top: 2px solid var(--hud-green);
+    border-left: 2px solid var(--hud-green);
+}
+
+.hud-panel::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 10px;
+    height: 10px;
+    border-bottom: 2px solid var(--hud-green);
+    border-right: 2px solid var(--hud-green);
+}
+
+.hud-title {
+    font-size: 12px;
+    letter-spacing: 2px;
+    background-color: var(--hud-green);
+    color: #000;
+    display: inline-block;
+    padding: 2px 5px;
+    margin-bottom: 15px;
+}
+
+/* Top Bar */
+.top-bar {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 20px;
+    border-bottom: 1px solid var(--hud-dim);
+}
+
+.status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.led {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: var(--hud-green);
+    box-shadow: 0 0 5px var(--hud-green);
+}
+
+/* Left Panel (Navigation/Goals) */
+.nav-panel {
+    grid-row: 2 / 3;
+}
+
+.goal-item {
+    margin-bottom: 20px;
+    border-left: 2px solid var(--hud-dim);
+    padding-left: 10px;
+}
+
+.goal-item.active {
+    border-left-color: var(--hud-green);
+}
+
+.goal-name {
+    font-size: 14px;
+    margin-bottom: 5px;
+}
+
+.goal-metric {
+    font-size: 10px;
+    color: var(--hud-amber);
+}
+
+/* Center View (Focus) */
+.center-view {
+    grid-row: 2 / 3;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    border-left: 1px solid var(--hud-dim);
+    border-right: 1px solid var(--hud-dim);
+}
+
+.focus-reticle {
+    width: 400px;
+    height: 300px;
+    border: 1px solid var(--hud-green);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background-color: rgba(0, 20, 0, 0.6);
+}
+
+.focus-reticle::before {
+    content: "TARGET ACQUIRED";
+    position: absolute;
+    top: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 10px;
+    color: var(--hud-green);
+    background-color: #000;
+    padding: 0 5px;
+}
+
+.current-task {
+    font-size: 24px;
+    text-align: center;
+    margin-bottom: 20px;
+    text-shadow: 0 0 10px var(--hud-green);
+}
+
+.task-meta {
+    font-size: 12px;
+    color: var(--hud-amber);
+}
+
+/* Right Panel (Systems) */
+.sys-panel {
+    grid-row: 2 / 3;
+}
+
+.gauge-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    font-size: 12px;
+}
+
+.gauge-bar {
+    width: 100px;
+    height: 8px;
+    background-color: var(--hud-dim);
+    position: relative;
+}
+
+.gauge-fill {
+    height: 100%;
+    background-color: var(--hud-green);
+}
+
+/* Bottom Bar (Alerts) */
+.alert-panel {
+    grid-column: 1 / -1;
+    border-top: 1px solid var(--hud-dim);
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.alert-msg {
+    font-size: 12px;
+    animation: blink 2s infinite;
+}
+
+@keyframes blink {
+    0% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+
+    100% {
+        opacity: 1;
+    }
+}
+
+/* Mode Switch */
+.mode-switch {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    border: 1px solid var(--hud-green);
+    padding: 5px;
+    font-size: 10px;
+    cursor: pointer;
+}
+
+.mode-switch:hover {
+    background-color: var(--hud-green);
+    color: #000;
+}
