@@ -285,6 +285,7 @@ class KnowledgeVaultManager:
                     id, created_at, entry_type, source, sensitivity,
                     secret_value, caption, caption_embedding, embedding_config,
                     organization_id, metadata_, last_modify, user_id,
+                    raw_memory_references,
                     {rank_sql} as rank_score
                 FROM knowledge_vault 
                 WHERE {tsvector_sql} @@ to_tsquery('english', :tsquery)
@@ -340,6 +341,7 @@ class KnowledgeVaultManager:
                     id, created_at, entry_type, source, sensitivity,
                     secret_value, caption, caption_embedding, embedding_config,
                     organization_id, metadata_, last_modify, user_id,
+                    raw_memory_references,
                     {rank_sql} as rank_score
                 FROM knowledge_vault 
                 WHERE {tsvector_sql} @@ to_tsquery('english', :tsquery)

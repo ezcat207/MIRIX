@@ -641,6 +641,7 @@ class EpisodicMemoryManager:
                     id, created_at, occurred_at, actor, event_type, tree_path,
                     summary, details, summary_embedding, details_embedding,
                     embedding_config, organization_id, metadata_, last_modify, user_id,
+                    raw_memory_references,
                     {rank_sql} as rank_score
                 FROM episodic_memory 
                 WHERE {tsvector_sql} @@ to_tsquery('english', :tsquery)
@@ -697,6 +698,7 @@ class EpisodicMemoryManager:
                     id, created_at, occurred_at, actor, event_type, tree_path,
                     summary, details, summary_embedding, details_embedding,
                     embedding_config, organization_id, metadata_, last_modify, user_id,
+                    raw_memory_references,
                     {rank_sql} as rank_score
                 FROM episodic_memory 
                 WHERE {tsvector_sql} @@ to_tsquery('english', :tsquery)

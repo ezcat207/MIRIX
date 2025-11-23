@@ -229,6 +229,7 @@ class ResourceMemoryManager:
                 SELECT 
                     id, title, summary, content, tree_path, summary_embedding, embedding_config,
                     created_at, resource_type, organization_id, metadata_, last_modify, user_id,
+                    raw_memory_references,
                     {rank_sql} as rank_score
                 FROM resource_memory 
                 WHERE {tsvector_sql} @@ to_tsquery('english', :tsquery)
@@ -284,6 +285,7 @@ class ResourceMemoryManager:
                 SELECT 
                     id, title, summary, content, tree_path, summary_embedding, embedding_config,
                     created_at, resource_type, organization_id, metadata_, last_modify, user_id,
+                    raw_memory_references,
                     {rank_sql} as rank_score
                 FROM resource_memory 
                 WHERE {tsvector_sql} @@ to_tsquery('english', :tsquery)

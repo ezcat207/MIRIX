@@ -1,4 +1,4 @@
-# Phase 2 最小飞轮设计：AI 复盘 + 看板 + 分析
+user# Phase 2 最小飞轮设计：AI 复盘 + 看板 + 分析
 
 **文档日期**: 2025-11-21
 **目标用户**: 独立开发者（Solo Developer / Indie Hacker）

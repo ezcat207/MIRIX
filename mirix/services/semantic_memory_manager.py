@@ -283,6 +283,7 @@ class SemanticMemoryManager:
                     id, created_at, name, summary, details, source, tree_path,
                     name_embedding, summary_embedding, details_embedding, embedding_config,
                     organization_id, metadata_, last_modify, user_id,
+                    raw_memory_references,
                     {rank_sql} as rank_score
                 FROM semantic_memory 
                 WHERE {tsvector_sql} @@ to_tsquery('english', :tsquery)
@@ -343,6 +344,7 @@ class SemanticMemoryManager:
                     id, created_at, name, summary, details, source, tree_path,
                     name_embedding, summary_embedding, details_embedding, embedding_config,
                     organization_id, metadata_, last_modify, user_id,
+                    raw_memory_references,
                     {rank_sql} as rank_score
                 FROM semantic_memory 
                 WHERE {tsvector_sql} @@ to_tsquery('english', :tsquery)

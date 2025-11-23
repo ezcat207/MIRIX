@@ -273,6 +273,7 @@ class ProceduralMemoryManager:
                     id, created_at, entry_type, summary, steps, tree_path,
                     steps_embedding, summary_embedding, embedding_config,
                     organization_id, metadata_, last_modify, user_id,
+                    raw_memory_references,
                     {rank_sql} as rank_score
                 FROM procedural_memory 
                 WHERE {tsvector_sql} @@ to_tsquery('english', :tsquery)
@@ -329,6 +330,7 @@ class ProceduralMemoryManager:
                     id, created_at, entry_type, summary, steps, tree_path,
                     steps_embedding, summary_embedding, embedding_config,
                     organization_id, metadata_, last_modify, user_id,
+                    raw_memory_references,
                     {rank_sql} as rank_score
                 FROM procedural_memory 
                 WHERE {tsvector_sql} @@ to_tsquery('english', :tsquery)
