@@ -806,3 +806,76 @@ class SemanticMemoryManager:
                 raise NoResultFound(
                     f"Semantic memory item with id {semantic_memory_id} not found."
                 )
+
+    def list_semantic_items_paginated(
+        self,
+        actor: PydanticUser,
+        search_query: Optional[str] = None,
+        limit: int = 50,
+        offset: int = 0,
+        timezone_str: str = "UTC",
+    ) -> dict:
+        """
+        List semantic memory items with simple search and pagination (optimized for frontend).
+
+        Args:
+            actor: The user to filter items by
+            search_query: Optional search keyword (searches in name, summary, details)
+            limit: Maximum number of items to return per page (default: 50)
+            offset: Number of items to skip (for pagination)
+            timezone_str: Timezone string for timestamp conversion
+
+        Returns:
+            Dictionary containing:
+                - items: List of PydanticSemanticMemoryItem instances
+                - total: Total count of matching items
+                - page: Current page number (1-indexed)
+                - pages: Total number of pages
+        """
+        from sqlalchemy import DateTime, cast, func, or_, text
+
+        with self.session_maker() as session:
+            # Build base query
+            query = select(SemanticMemoryItem).where(
+                SemanticMemoryItem.user_id == actor.id
+            )
+
+            # Apply search filter
+            if search_query and search_query.strip():
+                search_term = f"%{search_query}%"
+                query = query.where(
+                    or_(
+                        SemanticMemoryItem.id.ilike(search_term),
+                        SemanticMemoryItem.name.ilike(search_term),
+                        SemanticMemoryItem.summary.ilike(search_term),
+                        SemanticMemoryItem.details.ilike(search_term),
+                    )
+                )
+
+            # Get total count (before pagination)
+            count_query = select(func.count()).select_from(query.subquery())
+            total_count = session.execute(count_query).scalar() or 0
+
+            # Apply ordering and pagination
+            query = query.order_by(
+                cast(
+                    text("semantic_memory.last_modify ->> 'timestamp'"),
+                    DateTime,
+                ).desc()
+            )
+            query = query.limit(limit).offset(offset)
+
+            # Execute query
+            result = session.execute(query)
+            items = result.scalars().all()
+
+            # Calculate pagination metadata
+            current_page = (offset // limit) + 1 if limit > 0 else 1
+            total_pages = (total_count + limit - 1) // limit if limit > 0 else 1
+
+            return {
+                "items": [item.to_pydantic() for item in items],
+                "total": total_count,
+                "page": current_page,
+                "pages": total_pages,
+            }

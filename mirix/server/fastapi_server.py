@@ -1700,8 +1700,28 @@ async def get_episodic_memory(user_id: Optional[str] = None):
 
 
 @app.get("/memory/semantic")
-async def get_semantic_memory(user_id: Optional[str] = None):
-    """Get semantic memory (knowledge)"""
+async def get_semantic_memory(
+    search: Optional[str] = None,
+    page: int = 1,
+    limit: int = 50,
+    user_id: Optional[str] = None
+):
+    """
+    Get semantic memory (knowledge) with search and pagination support.
+
+    Args:
+        search: Optional search query (searches in name, summary, details)
+        page: Page number (1-indexed, default: 1)
+        limit: Maximum number of items to return per page (default: 50)
+        user_id: Optional user ID (unused, kept for backward compatibility)
+
+    Returns:
+        Dictionary containing:
+            - items: List of semantic memory items
+            - total: Total count of matching items
+            - page: Current page number
+            - pages: Total number of pages
+    """
     if agent is None:
         raise HTTPException(status_code=500, detail="Agent not initialized")
 
@@ -1711,46 +1731,57 @@ async def get_semantic_memory(user_id: Optional[str] = None):
         active_user = next((user for user in users if user.status == "active"), None)
         target_user = active_user if active_user else (users[0] if users else None)
 
-        client = agent.client
-        semantic_items_list = []
+        if not target_user:
+            return {"items": [], "total": 0, "page": 1, "pages": 0}
 
-        # Get semantic memory items
-        try:
-            semantic_manager = client.server.semantic_memory_manager
-            semantic_items = semantic_manager.list_semantic_items(
-                agent_state=agent.agent_states.semantic_memory_agent_state,
-                actor=target_user,
-                limit=50,
-                timezone_str=target_user.timezone,
+        client = agent.client
+        semantic_manager = client.server.semantic_memory_manager
+
+        # Calculate offset from page number
+        offset = (page - 1) * limit
+
+        # Use the new paginated method with search support
+        result = semantic_manager.list_semantic_items_paginated(
+            actor=target_user,
+            search_query=search,
+            limit=limit,
+            offset=offset,
+            timezone_str=target_user.timezone,
+        )
+
+        # Transform items to frontend format
+        semantic_items_list = []
+        for item in result["items"]:
+            # Fetch raw_memory details if references exist
+            raw_memory_details = []
+            if hasattr(item, 'raw_memory_references') and item.raw_memory_references:
+                raw_memory_details = fetch_raw_memory_details(item.raw_memory_references)
+
+            semantic_items_list.append(
+                {
+                    "id": item.id,
+                    "title": item.name,
+                    "type": "semantic",
+                    "summary": item.summary,
+                    "details": item.details,
+                    "tree_path": item.tree_path if hasattr(item, "tree_path") else [],
+                    "raw_memory_references": raw_memory_details,
+                }
             )
 
-            for item in semantic_items:
-                # Fetch raw_memory details if references exist
-                raw_memory_details = []
-                if hasattr(item, 'raw_memory_references') and item.raw_memory_references:
-                    raw_memory_details = fetch_raw_memory_details(item.raw_memory_references)
-
-                semantic_items_list.append(
-                    {
-                        "id": item.id,
-                        "title": item.name,
-                        "type": "semantic",
-                        "summary": item.summary,
-                        "details": item.details,
-                        "tree_path": item.tree_path
-                        if hasattr(item, "tree_path")
-                        else [],
-                        "raw_memory_references": raw_memory_details,
-                    }
-                )
-        except Exception as e:
-            print(f"Error retrieving semantic memory: {str(e)}")
-
-        return semantic_items_list
+        # Return paginated response
+        return {
+            "items": semantic_items_list,
+            "total": result["total"],
+            "page": result["page"],
+            "pages": result["pages"],
+        }
 
     except Exception as e:
         print(f"Error retrieving semantic memory: {str(e)}")
-        return []
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/memory/procedural")
