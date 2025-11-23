@@ -1895,8 +1895,14 @@ async def get_credentials_memory():
 
 
 @app.get("/memory/raw")
-async def get_raw_memory():
-    """Get raw memory items (screenshots with OCR text)"""
+async def get_raw_memory(limit: int = 50, offset: int = 0):
+    """
+    Get raw memory items (screenshots with OCR text)
+
+    Args:
+        limit: Maximum number of items to return (default: 50, max: 500)
+        offset: Number of items to skip (for pagination)
+    """
     if agent is None:
         raise HTTPException(status_code=500, detail="Agent not initialized")
         # disable for test
@@ -1917,12 +1923,16 @@ async def get_raw_memory():
 
         raw_memory_manager = RawMemoryManager()
 
-        # Query ALL raw_memory items (no user filter for single-user system)
-        # Increased limit to 500 to show more recent history
+        # Query recent raw_memory items (no user filter for single-user system)
+        # Support pagination for better performance
+        # Enforce max limit to prevent overload
+        max_limit = 500
+        actual_limit = min(limit, max_limit)
+
         with db_context() as session:
             items = session.query(RawMemoryItem).order_by(
                 RawMemoryItem.captured_at.desc()
-            ).limit(500).all()
+            ).limit(actual_limit).offset(offset).all()
 
             # Transform to frontend format
             raw_items = []
