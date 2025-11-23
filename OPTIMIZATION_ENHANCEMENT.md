@@ -134,6 +134,31 @@ raw_memories = raw_memory_manager.bulk_insert_raw_memories(
 - `mirix/services/raw_memory_manager.py` (+75 lines)
 - `mirix/agent/temporary_message_accumulator.py` (+93 lines, -20 lines)
 
+**⚠️ Bug 修复 (2025-11-22 16:40)**:
+
+**问题**: `bulk_save_objects()` 导致 SQLAlchemy session 错误
+```
+InvalidRequestError: Instance '<RawMemoryItem at 0x...>' is not persistent within this Session
+```
+
+**根本原因**: `bulk_save_objects()` 不会将对象附加到 session，导致后续 `refresh()` 失败
+
+**修复** (Commit: 979f01a):
+```python
+# 修改前:
+session.bulk_save_objects(raw_memories, return_defaults=True)
+session.commit()
+for rm in raw_memories:
+    session.refresh(rm)  # ❌ 失败
+
+# 修改后:
+session.add_all(raw_memories)  # ✅ 对象保持与 session 关联
+session.commit()
+# 无需 refresh，commit 后自动刷新
+```
+
+**效果**: 批量插入功能正常工作，性能不变
+
 ---
 
 ### 任务 2: 异步 Embedding 生成 ✅
