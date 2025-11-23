@@ -142,7 +142,17 @@ def main():
 
     from mirix.server import app
 
-    uvicorn.run(app, host=args.host, port=port)
+    # Increase concurrency to prevent health check timeouts
+    # when backend is processing heavy requests (e.g., image uploads, OCR)
+    # Note: workers parameter requires app to be passed as import string
+    uvicorn.run(
+        app, 
+        host=args.host, 
+        port=port,
+        limit_concurrency=100,  # Allow more concurrent connections
+        timeout_keep_alive=120,  # Increase keep-alive timeout
+        limit_max_requests=1000  # Restart worker after 1000 requests to prevent memory leaks
+    )
 
 
 if __name__ == "__main__":

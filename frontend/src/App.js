@@ -19,7 +19,13 @@ function App() {
     model: 'gemini-2.5-flash',
     persona: 'helpful_assistant',
     timezone: 'America/New_York',
-    serverUrl: 'http://localhost:47283'
+    serverUrl: 'http://127.0.0.1:47283', // Use 127.0.0.1 to avoid IPv6 resolution issues
+    openaiKey: '',
+    anthropicKey: '',
+    geminiKey: '',
+    openrouterKey: '',
+    localModelPath: '',
+    activePersona: 'default'
   });
 
   // Lift chat messages state to App level to persist across tab switches
@@ -58,7 +64,7 @@ function App() {
       if (response.ok) {
         const data = await response.json();
         console.log('API key status:', data);
-        
+
         if (forceOpen || (data.requires_api_key && data.missing_keys.length > 0)) {
           if (forceOpen) {
             console.log('Manual API key update requested');
@@ -89,10 +95,10 @@ function App() {
   // Refresh backend-dependent data after successful connection
   const refreshBackendData = useCallback(async () => {
     console.log('🔄 Refreshing backend-dependent data...');
-    
+
     // Check API keys after successful backend connection
     await checkApiKeys();
-    
+
     // Trigger refresh of other backend-dependent components
     // This will cause components like SettingsPanel to re-fetch their data
     setSettings(prev => ({ ...prev, lastBackendRefresh: Date.now() }));
@@ -102,7 +108,7 @@ function App() {
   const checkBackendHealth = useCallback(async () => {
     let shouldProceed = true;
     let currentVisibility = false;
-    
+
     // Check if health check is already in progress and capture current visibility
     setBackendLoading(prev => {
       if (prev.isChecking) {
@@ -123,19 +129,21 @@ function App() {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => {
-        console.warn('⏱️  Health check timeout (120s) - aborting');
+        console.warn('⏱️  Health check timeout (30s) - aborting');
         controller.abort();
-      }, 120000); // 120 second timeout (临时方案，等优化完成后改回 30s)
+      }, 30000); // 30 second timeout (reduced from 120s now that we use priority queue)
 
-      console.log('📡 Sending fetch request...');
+      console.log('📡 Sending priority health check request...');
       const startTime = performance.now();
 
-      const response = await fetch(`${settings.serverUrl}/health`, {
+      // Use queuedFetch with priority flag to ensure health checks are processed first
+      const response = await queuedFetch(`${settings.serverUrl}/health`, {
         method: 'GET',
         signal: controller.signal,
         headers: {
           'Content-Type': 'application/json',
-        }
+        },
+        isPriority: true  // Mark as high priority to bypass regular queue
       });
 
       const elapsed = performance.now() - startTime;
@@ -145,7 +153,7 @@ function App() {
 
       if (response.ok) {
         console.log('✅ Backend is healthy - hiding loading modal');
-        
+
         setBackendLoading(prev => ({
           ...prev,
           isVisible: false,
@@ -160,7 +168,7 @@ function App() {
           console.log('🔄 Backend reconnected - refreshing data...');
           await refreshBackendData();
         }
-        
+
         return true;
       } else {
         throw new Error(`Health check failed with status: ${response.status}`);
@@ -204,15 +212,15 @@ function App() {
   useEffect(() => {
     const performInitialHealthCheck = async () => {
       // Show loading modal immediately for initial startup
-      setBackendLoading(prev => ({ 
-        ...prev, 
-        isVisible: true, 
+      setBackendLoading(prev => ({
+        ...prev,
+        isVisible: true,
         isReconnection: false // This is initial startup, not reconnection
       }));
-      
+
       // Wait a moment for the UI to update
       await new Promise(resolve => setTimeout(resolve, 500));
-      
+
       // Check backend health (will automatically refresh data if modal was visible)
       await checkBackendHealth();
     };
@@ -282,7 +290,7 @@ function App() {
   const handleApiKeySubmit = async () => {
     // Refresh API key status after submission
     await checkApiKeys();
-    
+
     // If there's a pending model change, retry it now
     if (pendingModelChange.retryFunction) {
       console.log(`Retrying ${pendingModelChange.type} model change to '${pendingModelChange.model}' after API key update`);
@@ -303,7 +311,7 @@ function App() {
   useEffect(() => {
     // Listen for menu events from Electron
     const cleanupFunctions = [];
-    
+
     if (window.electronAPI) {
       const cleanupNewChat = window.electronAPI.onMenuNewChat(() => {
         setActiveTab('chat');
@@ -362,9 +370,9 @@ function App() {
     <div className="App">
       <div className="app-header">
         <div className="app-title">
-          <Logo 
-            size="small" 
-            showText={false} 
+          <Logo
+            size="small"
+            showText={false}
           />
           <span className="version">v0.1.5</span>
         </div>
@@ -404,7 +412,7 @@ function App() {
 
       <div className="app-content">
         {/* Keep ChatWindow always mounted to maintain streaming state */}
-        <div style={{ 
+        <div style={{
           display: activeTab === 'chat' ? 'flex' : 'none',
           flexDirection: 'column',
           height: '100%'
@@ -425,8 +433,8 @@ function App() {
         </div>
         {/* Keep ScreenshotMonitor always mounted to maintain monitoring state */}
         <div style={{ display: activeTab === 'screenshots' ? 'block' : 'none' }}>
-          <ScreenshotMonitor 
-            settings={settings} 
+          <ScreenshotMonitor
+            settings={settings}
             onMonitoringStatusChange={setIsScreenMonitoring}
           />
         </div>

@@ -1996,23 +1996,32 @@ Please perform this analysis and create new memories as appropriate. Provide a d
             # For screen monitoring, force immediate absorption to avoid waiting for 20 messages
             should_force_absorb = force_absorb_content or is_screen_monitoring
             if should_force_absorb or ready_messages:
-                t1 = time.time()
-                # Pass the ready messages to absorb_content_into_memory if available
-                if ready_messages:
-                    self.temp_message_accumulator.absorb_content_into_memory(
-                        self.agent_states, ready_messages, user_id=user_id
-                    )
-                else:
-                    # Force absorb with whatever is available
-                    self.temp_message_accumulator.absorb_content_into_memory(
-                        self.agent_states, user_id=user_id
-                    )
-                t2 = time.time()
-                self.logger.info(
-                    f"Time taken to absorb content into memory: {t2 - t1} seconds"
-                )
+                # Define function to run in background
+                def run_absorption():
+                    try:
+                        t1 = time.time()
+                        # Pass the ready messages to absorb_content_into_memory if available
+                        if ready_messages:
+                            self.temp_message_accumulator.absorb_content_into_memory(
+                                self.agent_states, ready_messages, user_id=user_id
+                            )
+                        else:
+                            # Force absorb with whatever is available
+                            self.temp_message_accumulator.absorb_content_into_memory(
+                                self.agent_states, user_id=user_id
+                            )
+                        t2 = time.time()
+                        self.logger.info(
+                            f"Time taken to absorb content into memory: {t2 - t1} seconds"
+                        )
+                        self.clear_old_screenshots()
+                    except Exception as e:
+                        self.logger.error(f"Error in background memory absorption: {e}")
 
-                self.clear_old_screenshots()
+                # Run in a separate thread to avoid blocking the response
+                # This is critical because memory absorption can take >100s
+                threading.Thread(target=run_absorption).start()
+                self.logger.info("Started background memory absorption")
 
         else:
             if image_uris is not None:
