@@ -859,7 +859,433 @@ perf(raw_memory): 实现批量数据库插入优化
 
 ---
 
-**最后更新**: 2025-11-22
+## 🔧 Phase 2 - 功能增强任务
+
+### 背景
+
+**发现日期**: 2025-11-23
+**优先级**: P1 (高)
+**状态**: 🔍 设计中
+
+### 问题描述
+
+**Bug**: Memory 搜索功能只在前端已加载的 50 条记录中搜索，无法搜索全部数据库
+
+**影响**:
+1. ❌ 用户搜索 Raw Memory ID 时，只能搜索到前 50 条
+2. ❌ 各个 Agent Memory 到 Raw Memory 的双向链接失效（点击 Raw Memory ID 可能找不到）
+3. ❌ Semantic/Episodic/Procedural/Resource Memory 搜索也有同样问题
+4. ❌ 影响用户体验和记忆系统完整性
+
+**当前实现**:
+```javascript
+// 前端：ExistingMemory.js
+// ❌ 问题：只在已加载的 50 条数据中过滤
+const filterMemories = (memories, query) => {
+  // ... 在 memories 数组中过滤（最多 50 条）
+  return filtered.filter(item => searchableText.includes(searchTerm));
+};
+```
+
+```python
+# 后端：fastapi_server.py
+# ❌ 问题：所有端点都是 limit=50，无搜索参数
+@app.get("/memory/semantic")
+async def get_semantic_memory(user_id: Optional[str] = None):
+    semantic_items = semantic_manager.list_semantic_items(
+        limit=50,  # ❌ 固定 50 条
+        # ❌ 无搜索参数
+    )
+```
+
+---
+
+## 🎯 修复方案设计
+
+### 方案对比
+
+#### **方案 A: 完整的后端搜索 + 分页**（推荐）⭐
+
+**架构**:
+```
+前端搜索 → 后端数据库全文搜索 → 返回分页结果 → 前端显示
+```
+
+**优点**:
+- ✅ 搜索全部数据库记录（不限于 50 条）
+- ✅ 性能最优（数据库索引加速）
+- ✅ 支持大规模数据（100k+ 记录）
+- ✅ 减少网络传输（只返回匹配结果）
+- ✅ 扩展性强（未来可添加高级搜索）
+
+**缺点**:
+- ⚠️ 实现复杂度较高
+- ⚠️ 需要修改后端 + 前端
+- ⚠️ 需要添加数据库索引
+
+**工作量**: 中-高（2-3 天）
+
+---
+
+#### **方案 B: 前端分页加载 + 客户端搜索**
+
+**架构**:
+```
+前端加载所有数据（分页） → 客户端全文搜索 → 前端显示
+```
+
+**优点**:
+- ✅ 实现简单（只需修改前端）
+- ✅ 搜索逻辑复用现有代码
+- ✅ 无需数据库索引
+
+**缺点**:
+- ❌ 性能差（加载所有数据）
+- ❌ 内存占用高（前端存储所有记录）
+- ❌ 不支持大规模数据（>10k 记录会卡顿）
+- ❌ 网络传输量大
+
+**工作量**: 低（1 天）
+
+---
+
+#### **方案 C: 混合方案（智能加载）**
+
+**架构**:
+```
+默认: 加载 50 条（当前行为）
+搜索: 后端数据库搜索（只搜索，不分页）
+翻页: 前端分页加载
+```
+
+**优点**:
+- ✅ 搜索性能好（数据库索引）
+- ✅ 默认加载快（50 条）
+- ✅ 实现复杂度适中
+
+**缺点**:
+- ⚠️ 搜索和翻页逻辑不一致
+- ⚠️ 用户体验略差（搜索 vs 翻页两种模式）
+
+**工作量**: 中（1-2 天）
+
+---
+
+## 📋 任务分解（基于方案 A - 推荐）
+
+### 任务 8.1: 后端 - 添加搜索和分页支持 ✅ 设计完成
+
+**目标**: 为所有 Memory API 添加 `search` 和 `page` 参数
+
+**涉及文件**:
+- `mirix/server/fastapi_server.py`
+- `mirix/services/semantic_memory_manager.py`
+- `mirix/services/episodic_memory_manager.py`
+- `mirix/services/procedural_memory_manager.py`
+- `mirix/services/resource_memory_manager.py`
+- `mirix/services/raw_memory_manager.py`
+
+**修改内容**:
+
+1. **API 签名修改**:
+```python
+# Before:
+@app.get("/memory/semantic")
+async def get_semantic_memory(user_id: Optional[str] = None):
+    semantic_items = semantic_manager.list_semantic_items(limit=50)
+
+# After:
+@app.get("/memory/semantic")
+async def get_semantic_memory(
+    user_id: Optional[str] = None,
+    search: Optional[str] = None,  # 新增：搜索关键词
+    page: int = 1,                 # 新增：页码（从 1 开始）
+    limit: int = 50                # 保留：每页记录数
+):
+    offset = (page - 1) * limit
+    semantic_items = semantic_manager.list_semantic_items(
+        search_query=search,
+        limit=limit,
+        offset=offset
+    )
+```
+
+2. **Manager 层添加搜索逻辑**:
+```python
+# 示例：semantic_memory_manager.py
+def list_semantic_items(
+    self,
+    agent_state,
+    actor,
+    search_query: Optional[str] = None,  # 新增
+    limit: int = 50,
+    offset: int = 0,                      # 新增
+    timezone_str: str = "UTC"
+):
+    query = session.query(SemanticMemory)
+
+    # 添加搜索条件
+    if search_query:
+        search_term = f"%{search_query}%"
+        query = query.filter(
+            or_(
+                SemanticMemory.name.ilike(search_term),
+                SemanticMemory.summary.ilike(search_term),
+                SemanticMemory.details.ilike(search_term),
+            )
+        )
+
+    # 添加分页
+    total_count = query.count()
+    items = query.order_by(
+        SemanticMemory.created_at.desc()
+    ).limit(limit).offset(offset).all()
+
+    return {
+        "items": items,
+        "total": total_count,
+        "page": offset // limit + 1,
+        "pages": (total_count + limit - 1) // limit
+    }
+```
+
+3. **Raw Memory 特殊处理**:
+```python
+# raw_memory_manager.py 需要添加 OCR 文本搜索
+if search_query:
+    search_term = f"%{search_query}%"
+    query = query.filter(
+        or_(
+            RawMemoryItem.id.ilike(search_term),
+            RawMemoryItem.source_app.ilike(search_term),
+            RawMemoryItem.source_url.ilike(search_term),
+            RawMemoryItem.ocr_text.ilike(search_term),  # OCR 全文搜索
+        )
+    )
+```
+
+**预期效果**:
+- ✅ 支持全数据库搜索
+- ✅ 返回总记录数和总页数
+- ✅ 性能优化（数据库索引）
+
+---
+
+### 任务 8.2: 后端 - 数据库索引优化
+
+**目标**: 为搜索字段添加数据库索引，提升搜索性能
+
+**涉及文件**:
+- `mirix/orm/semantic_memory.py`
+- `mirix/orm/episodic_memory.py`
+- `mirix/orm/procedural_memory.py`
+- `mirix/orm/resource_memory.py`
+- `mirix/orm/raw_memory.py`
+
+**修改内容**:
+```python
+# 示例：semantic_memory.py
+class SemanticMemory(Base):
+    __tablename__ = "semantic_memory"
+
+    name = Column(String, index=True)       # 添加索引
+    summary = Column(Text, index=False)     # 全文索引（PostgreSQL）
+    details = Column(Text, index=False)     # 全文索引（PostgreSQL）
+
+    # PostgreSQL 全文搜索索引
+    __table_args__ = (
+        Index('idx_semantic_name', 'name'),
+        Index('idx_semantic_fts', 'summary', 'details', postgresql_using='gin'),
+    )
+```
+
+**数据库迁移脚本**:
+```sql
+-- PostgreSQL
+CREATE INDEX IF NOT EXISTS idx_semantic_memory_name ON semantic_memory(name);
+CREATE INDEX IF NOT EXISTS idx_episodic_memory_description ON episodic_memory(description);
+CREATE INDEX IF NOT EXISTS idx_raw_memory_ocr_text ON raw_memory USING gin(to_tsvector('english', ocr_text));
+
+-- SQLite (开发环境)
+CREATE INDEX IF NOT EXISTS idx_semantic_memory_name ON semantic_memory(name);
+CREATE INDEX IF NOT EXISTS idx_raw_memory_source_app ON raw_memory(source_app);
+```
+
+**预期效果**:
+- ✅ 搜索速度提升 10-100 倍
+- ✅ 支持 10 万+ 记录快速搜索
+
+---
+
+### 任务 8.3: 前端 - 搜索 UI 和分页组件
+
+**目标**: 修改前端搜索逻辑，调用后端搜索 API
+
+**涉及文件**:
+- `frontend/src/components/ExistingMemory.js`
+
+**修改内容**:
+
+1. **修改 fetchMemoryData 函数**:
+```javascript
+// Before:
+const fetchMemoryData = async (memoryType) => {
+  const endpoint = '/memory/semantic';
+  const data = await fetch(`${settings.serverUrl}${endpoint}`);
+  setMemoryData(data);
+};
+
+// After:
+const fetchMemoryData = async (memoryType, searchQuery = '', page = 1) => {
+  const endpoint = '/memory/semantic';
+  const params = new URLSearchParams({
+    page: page,
+    limit: 50,
+  });
+
+  if (searchQuery.trim()) {
+    params.append('search', searchQuery);
+  }
+
+  const response = await fetch(`${settings.serverUrl}${endpoint}?${params}`);
+  const data = await response.json();
+
+  setMemoryData(data.items);      // 记录列表
+  setTotalPages(data.pages);       // 总页数
+  setTotalCount(data.total);       // 总记录数
+  setCurrentPage(data.page);       // 当前页
+};
+```
+
+2. **添加搜索触发逻辑**:
+```javascript
+// 搜索框输入时，重置到第一页并触发搜索
+const handleSearchChange = (e) => {
+  const query = e.target.value;
+  setSearchQuery(query);
+  setCurrentPage(1);  // 重置到第一页
+
+  // 防抖：500ms 后触发搜索
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(() => {
+    fetchMemoryData(activeSubTab, query, 1);
+  }, 500);
+};
+```
+
+3. **添加分页组件**:
+```jsx
+<div className="pagination">
+  <button
+    disabled={currentPage === 1}
+    onClick={() => {
+      setCurrentPage(currentPage - 1);
+      fetchMemoryData(activeSubTab, searchQuery, currentPage - 1);
+    }}
+  >
+    Previous
+  </button>
+
+  <span>Page {currentPage} of {totalPages} ({totalCount} total)</span>
+
+  <button
+    disabled={currentPage === totalPages}
+    onClick={() => {
+      setCurrentPage(currentPage + 1);
+      fetchMemoryData(activeSubTab, searchQuery, currentPage + 1);
+    }}
+  >
+    Next
+  </button>
+</div>
+```
+
+4. **移除客户端过滤逻辑**:
+```javascript
+// ❌ 删除这个函数（不再需要）
+const filterMemories = (memories, query) => {
+  // ... 客户端过滤逻辑
+};
+
+// ✅ 搜索直接调用后端
+useEffect(() => {
+  fetchMemoryData(activeSubTab, searchQuery, currentPage);
+}, [searchQuery, currentPage, activeSubTab]);
+```
+
+**预期效果**:
+- ✅ 搜索全部数据库记录
+- ✅ 分页浏览所有记录
+- ✅ 搜索结果实时更新（500ms 防抖）
+- ✅ 显示总记录数和总页数
+
+---
+
+### 任务 8.4: 测试和验证
+
+**目标**: 确保搜索和分页功能正常工作
+
+**测试用例**:
+
+1. **基础搜索测试**:
+   - [ ] 搜索 Raw Memory ID，验证能找到所有匹配记录（不限于前 50 条）
+   - [ ] 搜索 OCR 文本关键词，验证全文搜索有效
+   - [ ] 搜索 Semantic Memory 名称/详情，验证准确性
+
+2. **分页测试**:
+   - [ ] 加载第 1 页，验证显示前 50 条
+   - [ ] 点击"下一页"，验证显示第 51-100 条
+   - [ ] 验证总页数和总记录数正确
+
+3. **性能测试**:
+   - [ ] 创建 1000+ 条 Raw Memory 记录
+   - [ ] 搜索关键词，验证响应时间 < 500ms
+   - [ ] 翻页时响应时间 < 200ms
+
+4. **边界情况测试**:
+   - [ ] 搜索不存在的关键词，显示"无结果"
+   - [ ] 搜索返回 1 条结果，验证显示正确
+   - [ ] 切换 Memory 类型，验证搜索和分页重置
+
+5. **双向链接测试** ⭐:
+   - [ ] 在 Semantic Memory 中点击 Raw Memory 引用
+   - [ ] 验证能跳转到 Raw Memory 并自动搜索到该记录
+   - [ ] 验证即使该记录不在前 50 条也能找到
+
+**验证标准**:
+- ✅ 所有测试用例通过
+- ✅ 无性能回退
+- ✅ 无 UI 错误
+
+---
+
+## 📊 方案对比总结表
+
+| 维度 | 方案 A（推荐）| 方案 B | 方案 C |
+|------|-------------|--------|--------|
+| **搜索范围** | ✅ 全数据库 | ✅ 全数据库 | ✅ 全数据库 |
+| **搜索性能** | ✅ 优秀（数据库索引）| ❌ 差（客户端过滤）| ✅ 良好 |
+| **分页性能** | ✅ 优秀 | ❌ 差 | ✅ 良好 |
+| **扩展性** | ✅ 优秀 | ❌ 差 | ⚠️ 一般 |
+| **实现复杂度** | ⚠️ 中-高 | ✅ 低 | ⚠️ 中 |
+| **工作量** | 2-3 天 | 1 天 | 1-2 天 |
+| **支持数据规模** | 100k+ | <10k | 50k |
+| **用户体验** | ✅ 优秀 | ❌ 一般 | ⚠️ 良好 |
+
+**推荐**: **方案 A** - 完整的后端搜索 + 分页
+
+**理由**:
+1. ✅ 性能最优，支持大规模数据
+2. ✅ 用户体验最好（快速搜索 + 流畅分页）
+3. ✅ 扩展性强（未来可添加高级搜索、过滤等功能）
+4. ✅ 符合行业最佳实践（后端搜索 + 前端展示）
+
+---
+
+**最后更新**: 2025-11-23
 **负责人**: Claude + User
-**优先级**: P0 (最高)
-**状态**: ✅ 全部完成
+**优先级 Phase 1**: P0 (最高)
+**状态 Phase 1**: ✅ 全部完成
+
+**优先级 Phase 2**: P1 (高)
+**状态 Phase 2**: 🔍 等待方案选择
