@@ -646,3 +646,75 @@ class RawMemoryManager:
 
             result = session.execute(query)
             return list(result.scalars().all())
+
+    def list_raw_memories(
+        self,
+        user_id: Optional[str] = None,
+        organization_id: Optional[str] = None,
+        search_query: Optional[str] = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> dict:
+        """
+        List raw memory items with optional search and pagination.
+
+        Args:
+            user_id: Optional user ID to filter by
+            organization_id: Optional organization ID to filter by
+            search_query: Optional search keyword (searches in id, source_app, source_url, ocr_text)
+            limit: Maximum number of items to return per page (default: 50)
+            offset: Number of items to skip (for pagination)
+
+        Returns:
+            Dictionary containing:
+                - items: List of RawMemoryItem instances
+                - total: Total count of matching items
+                - page: Current page number (1-indexed)
+                - pages: Total number of pages
+        """
+        from sqlalchemy import func, or_
+
+        with self.session_maker() as session:
+            # Build base query
+            query = select(RawMemoryItem)
+
+            # Apply filters
+            if user_id:
+                query = query.where(RawMemoryItem.user_id == user_id)
+            if organization_id:
+                query = query.where(RawMemoryItem.organization_id == organization_id)
+
+            # Apply search filter
+            if search_query and search_query.strip():
+                search_term = f"%{search_query}%"
+                query = query.where(
+                    or_(
+                        RawMemoryItem.id.ilike(search_term),
+                        RawMemoryItem.source_app.ilike(search_term),
+                        RawMemoryItem.source_url.ilike(search_term),
+                        RawMemoryItem.ocr_text.ilike(search_term),
+                    )
+                )
+
+            # Get total count (before pagination)
+            count_query = select(func.count()).select_from(query.subquery())
+            total_count = session.execute(count_query).scalar() or 0
+
+            # Apply ordering and pagination
+            query = query.order_by(RawMemoryItem.captured_at.desc())
+            query = query.limit(limit).offset(offset)
+
+            # Execute query
+            result = session.execute(query)
+            items = list(result.scalars().all())
+
+            # Calculate pagination metadata
+            current_page = (offset // limit) + 1 if limit > 0 else 1
+            total_pages = (total_count + limit - 1) // limit if limit > 0 else 1
+
+            return {
+                "items": items,
+                "total": total_count,
+                "page": current_page,
+                "pages": total_pages,
+            }

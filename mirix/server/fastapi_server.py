@@ -1990,70 +1990,81 @@ async def get_credentials_memory():
 
 
 @app.get("/memory/raw")
-async def get_raw_memory(limit: int = 50, offset: int = 0):
+async def get_raw_memory(
+    search: Optional[str] = None,
+    page: int = 1,
+    limit: int = 50
+):
     """
-    Get raw memory items (screenshots with OCR text)
+    Get raw memory items (screenshots with OCR text) with search and pagination support.
 
     Args:
-        limit: Maximum number of items to return (default: 50, max: 500)
-        offset: Number of items to skip (for pagination)
+        search: Optional search query (searches in id, source_app, source_url, ocr_text)
+        page: Page number (1-indexed, default: 1)
+        limit: Maximum number of items to return per page (default: 50, max: 500)
+
+    Returns:
+        Dictionary containing:
+            - items: List of raw memory items
+            - total: Total count of matching items
+            - page: Current page number
+            - pages: Total number of pages
     """
     if agent is None:
         raise HTTPException(status_code=500, detail="Agent not initialized")
-        # disable for test
-        # Find the current active user
-        # users = agent.client.server.user_manager.list_users()
-        # active_user = next((user for user in users if user.status == "active"), None)
-        # target_user = active_user if active_user else (users[0] if users else None)
-
-        # if not target_user:
-        #     return []
-    
 
     try:
-        # Import raw memory manager and ORM
+        # Import raw memory manager
         from mirix.services.raw_memory_manager import RawMemoryManager
-        from mirix.orm.raw_memory import RawMemoryItem
-        from mirix.server.server import db_context
 
         raw_memory_manager = RawMemoryManager()
 
-        # Query recent raw_memory items (no user filter for single-user system)
-        # Support pagination for better performance
         # Enforce max limit to prevent overload
         max_limit = 500
         actual_limit = min(limit, max_limit)
 
-        with db_context() as session:
-            items = session.query(RawMemoryItem).order_by(
-                RawMemoryItem.captured_at.desc()
-            ).limit(actual_limit).offset(offset).all()
+        # Calculate offset from page number
+        offset = (page - 1) * actual_limit
 
-            # Transform to frontend format
-            raw_items = []
-            for item in items:
-                # Generate screenshot URL instead of path
-                screenshot_url = f"/raw_memory/{item.id}/screenshot" if item.screenshot_path else None
+        # Use the new list_raw_memories method with search support
+        result = raw_memory_manager.list_raw_memories(
+            search_query=search,
+            limit=actual_limit,
+            offset=offset,
+        )
 
-                # Create OCR preview (first 200 characters)
-                ocr_preview = None
-                if item.ocr_text:
-                    ocr_preview = item.ocr_text[:200]
-                    if len(item.ocr_text) > 200:
-                        ocr_preview += "..."
+        # Transform items to frontend format
+        raw_items = []
+        for item in result["items"]:
+            # Generate screenshot URL instead of path
+            screenshot_url = f"/raw_memory/{item.id}/screenshot" if item.screenshot_path else None
 
-                raw_items.append({
-                    "id": item.id,
-                    "screenshot_url": screenshot_url,  # ✓ Frontend can access this
-                    "source_app": item.source_app,
-                    "source_url": item.source_url,
-                    "captured_at": item.captured_at.isoformat() if item.captured_at else None,
-                    "ocr_preview": ocr_preview,  # ✓ Short preview for list view
-                    "ocr_text": item.ocr_text,  # ✓ Full text for expanded view
-                    "processed": item.processed,
-                    "created_at": item.created_at.isoformat() if item.created_at else None,
-                })
-        return raw_items
+            # Create OCR preview (first 200 characters)
+            ocr_preview = None
+            if item.ocr_text:
+                ocr_preview = item.ocr_text[:200]
+                if len(item.ocr_text) > 200:
+                    ocr_preview += "..."
+
+            raw_items.append({
+                "id": item.id,
+                "screenshot_url": screenshot_url,
+                "source_app": item.source_app,
+                "source_url": item.source_url,
+                "captured_at": item.captured_at.isoformat() if item.captured_at else None,
+                "ocr_preview": ocr_preview,  # Short preview for list view
+                "ocr_text": item.ocr_text,  # Full text for expanded view
+                "processed": item.processed,
+                "created_at": item.created_at.isoformat() if item.created_at else None,
+            })
+
+        # Return paginated response
+        return {
+            "items": raw_items,
+            "total": result["total"],
+            "page": result["page"],
+            "pages": result["pages"],
+        }
 
     except Exception as e:
         print(f"Error retrieving raw memory: {str(e)}")
