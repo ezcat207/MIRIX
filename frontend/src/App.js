@@ -16,7 +16,7 @@ function App() {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState('chat');
   const [settings, setSettings] = useState({
-    model: 'gpt-4o-mini',
+    model: 'gemini-2.5-flash',
     persona: 'helpful_assistant',
     timezone: 'America/New_York',
     serverUrl: 'http://localhost:47283'
