@@ -1798,8 +1798,13 @@ async def get_semantic_memory(
 
 
 @app.get("/memory/procedural")
-async def get_procedural_memory(user_id: Optional[str] = None):
-    """Get procedural memory (skills and procedures)"""
+async def get_procedural_memory(
+    search: Optional[str] = None,
+    page: int = 1,
+    limit: int = 50,
+    user_id: Optional[str] = None
+):
+    """Get procedural memory with search and pagination support"""
     if agent is None:
         raise HTTPException(status_code=500, detail="Agent not initialized")
 
@@ -1812,17 +1817,22 @@ async def get_procedural_memory(user_id: Optional[str] = None):
         client = agent.client
         procedural_items_list = []
 
-        # Get procedural memory items
+        # Get procedural memory items with pagination
         try:
             procedural_manager = client.server.procedural_memory_manager
-            procedural_items = procedural_manager.list_procedures(
-                agent_state=agent.agent_states.procedural_memory_agent_state,
+
+            # Calculate offset from page number
+            offset = (page - 1) * limit
+
+            # Use the new paginated method with search support
+            result = procedural_manager.list_procedural_items_paginated(
                 actor=target_user,
-                limit=50,
-                timezone_str=target_user.timezone,
+                search_query=search,
+                limit=limit,
+                offset=offset,
             )
 
-            for item in procedural_items:
+            for item in result["items"]:
                 # Parse steps if it's a JSON string
                 steps = item.steps
                 if isinstance(steps, str):
@@ -1867,14 +1877,20 @@ async def get_procedural_memory(user_id: Optional[str] = None):
                     }
                 )
 
+            return {
+                "items": procedural_items_list,
+                "total": result["total"],
+                "page": result["page"],
+                "pages": result["pages"],
+            }
+
         except Exception as e:
             print(f"Error retrieving procedural memory: {str(e)}")
-
-        return procedural_items_list
+            return {"items": [], "total": 0, "page": 1, "pages": 0}
 
     except Exception as e:
         print(f"Error retrieving procedural memory: {str(e)}")
-        return []
+        return {"items": [], "total": 0, "page": 1, "pages": 0}
 
 
 @app.get("/memory/resources")
