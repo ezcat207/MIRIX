@@ -133,9 +133,14 @@ const ExistingMemory = ({ settings }) => {
       }
 
       const data = await response.json();
+
+      // Handle new paginated response format {items, total, page, pages}
+      // For backward compatibility with endpoints that still return arrays
+      const memoryItems = data.items ? data.items : data;
+
       setMemoryData(prev => ({
         ...prev,
-        [memoryType]: data
+        [memoryType]: memoryItems
       }));
     } catch (err) {
       console.error(`Error fetching ${memoryType}:`, err);
