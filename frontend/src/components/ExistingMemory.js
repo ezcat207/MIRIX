@@ -342,7 +342,7 @@ const ExistingMemory = ({ settings }) => {
   // Trigger backend search when searchQuery changes (with debounce)
   useEffect(() => {
     // Only trigger backend search for tabs that support it
-    const searchableTabs = ['raw-memory', 'semantic'];
+    const searchableTabs = ['raw-memory', 'semantic', 'episodic', 'procedural', 'resources'];
     if (!searchableTabs.includes(activeSubTab)) {
       return;
     }
