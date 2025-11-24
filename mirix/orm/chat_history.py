@@ -1,8 +1,7 @@
 import uuid
 from typing import List, Optional
 
-from sqlalchemy import String, Text
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import String, Text, JSON
 from sqlalchemy.orm import Mapped, mapped_column
 
 from mirix.orm.sqlalchemy_base import SqlalchemyBase
@@ -23,13 +22,13 @@ class ChatMessage(SqlalchemyBase):
     content: Mapped[str] = mapped_column(Text, nullable=True)
     
     # Store images as a list of objects/strings
-    images: Mapped[Optional[List]] = mapped_column(JSONB, nullable=True)
+    images: Mapped[Optional[List]] = mapped_column(JSON, nullable=True)
     
     # Store thinking steps for assistant messages
-    thinking_steps: Mapped[Optional[List]] = mapped_column(JSONB, nullable=True)
+    thinking_steps: Mapped[Optional[List]] = mapped_column(JSON, nullable=True)
     
     # Store memory references for assistant messages
-    memory_references: Mapped[Optional[List]] = mapped_column(JSONB, nullable=True)
+    memory_references: Mapped[Optional[List]] = mapped_column(JSON, nullable=True)
 
     def __repr__(self) -> str:
         return f"<ChatMessage(id={self.id}, role={self.role}, content={self.content[:50]}...)>"

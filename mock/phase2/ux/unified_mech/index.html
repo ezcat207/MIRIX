@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>MIRIX MECH PILOT // UNIFIED PROTOCOL</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="mech_data.js"></script>
+</head>
+
+<body>
+    <!-- STAGE 1: HANGAR -->
+    <div id="screen-hangar" class="screen active">
+        <div class="hangar-header">
+            <div style="font-family: var(--font-hud); color: var(--color-hangar);">
+                // HANGAR BAY // PRE-FLIGHT CHECK
+            </div>
+            <div style="font-size: 12px; color: #aaa;">
+                PILOT: <span id="pilot-name" style="color: #fff;">--</span>
+            </div>
+        </div>
+
+        <!-- Pilot Metrics (Magic Metrics) -->
+        <div class="pilot-card">
+            <div style="color: var(--color-hangar); margin-bottom: 15px; font-weight: bold;">PILOT METRICS (O2)</div>
+            <div class="metric-row">
+                <span>CAPABILITY GROWTH</span>
+                <span id="metric-growth" style="color: #fff;">--</span>
+            </div>
+            <div class="metric-row">
+                <span>WEALTH FLOW</span>
+                <span id="metric-wealth" style="color: #fff;">--</span>
+            </div>
+            <div class="metric-row">
+                <span>INFLUENCE</span>
+                <span id="metric-inf" style="color: #fff;">--</span>
+            </div>
+
+            <div style="margin-top: 20px; border-top: 1px solid #333; padding-top: 10px;">
+                <div style="color: var(--color-alert); font-size: 12px; margin-bottom: 5px;">KR0 STATUS: ACTIVE REVIEW
+                </div>
+                <div style="font-size: 10px; color: #aaa;" id="kr0-status">--</div>
+            </div>
+        </div>
+
+        <!-- Mech Bay -->
+        <div class="mech-bay" id="mech-list">
+            <!-- Populated by JS -->
+        </div>
+    </div>
+
+    <!-- STAGE 2: COCKPIT -->
+    <div id="screen-cockpit" class="screen">
+        <!-- Top Bar -->
+        <div
+            style="grid-column: 1/-1; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--color-cockpit); padding: 0 20px;">
+            <div style="color: var(--color-cockpit); font-family: var(--font-hud);">// COMBAT MODE // <span
+                    id="active-mech-name">--</span></div>
+            <button class="btn btn-cockpit" onclick="completeMission()">MISSION COMPLETE</button>
+        </div>
+
+        <!-- Left HUD -->
+        <div class="hud-panel" style="grid-row: 2/3;">
+            <div style="color: var(--color-cockpit); margin-bottom: 10px;">TACTICAL MAP</div>
+            <div id="cockpit-task-list" style="font-size: 12px; color: #aaa;">
+                <!-- Tasks -->
+            </div>
+        </div>
+
+        <!-- Center Reticle -->
+        <div class="reticle-container">
+            <div class="reticle">
+                <div style="color: var(--color-cockpit); font-size: 10px; margin-bottom: 10px;">CURRENT OBJECTIVE</div>
+                <div class="focus-task" id="focus-task-title">--</div>
+                <div style="color: #aaa; font-size: 12px; margin-top: 5px;" id="focus-task-xp">--</div>
+
+                <div class="shield-bar">
+                    <div class="shield-fill" id="flow-shield"></div>
+                </div>
+                <div style="font-size: 10px; color: var(--color-cockpit); margin-top: 5px;">FLOW SHIELD: 100%</div>
+            </div>
+        </div>
+
+        <!-- Right HUD -->
+        <div class="hud-panel" style="grid-row: 2/3;">
+            <div style="color: var(--color-cockpit); margin-bottom: 10px;">SYSTEMS</div>
+            <div style="font-size: 12px; margin-bottom: 5px;">SESSION TIME: <span id="session-timer">00:00:00</span>
+            </div>
+            <div style="font-size: 12px;">FOCUS SCORE: 98%</div>
+        </div>
+    </div>
+
+    <!-- STAGE 3: DEBRIEF -->
+    <div id="screen-debrief" class="screen">
+        <div style="text-align: center; font-family: var(--font-hud); font-size: 24px; color: var(--color-debrief);">
+            // MISSION DEBRIEF //
+        </div>
+
+        <div class="report-card">
+            <div style="margin-bottom: 10px; color: #aaa;">MISSION SUMMARY</div>
+            <div style="font-size: 18px; margin-bottom: 20px;" id="debrief-summary">
+                Completed 2 tasks in MIRIX-01.
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div>
+                    <div style="font-size: 12px; color: #aaa;">CAPABILITY GROWTH</div>
+                    <div class="growth-stat">+0.5%</div>
+                </div>
+                <div>
+                    <div style="font-size: 12px; color: #aaa;">INFLUENCE</div>
+                    <div class="growth-stat">+0.0%</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="report-card" style="border-color: var(--color-alert);">
+            <div style="margin-bottom: 10px; color: var(--color-alert);">KR0: ACTIVE REVIEW REQUIRED</div>
+            <div style="font-size: 14px; margin-bottom: 10px;">Oracle: "What was the biggest blocker during this
+                session?"</div>
+            <textarea
+                style="width: 100%; height: 60px; background: #222; border: 1px solid #555; color: #fff; padding: 10px;"
+                placeholder="Type your reflection here..."></textarea>
+        </div>
+
+        <div style="text-align: center;">
+            <button class="btn btn-debrief" onclick="returnToHangar()">CONFIRM & RETURN TO HANGAR</button>
+        </div>
+    </div>
+
+    <script>
+        // State
+        let currentMech = null;
+        let sessionStartTime = null;
+        let timerInterval = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            renderHangar();
+        });
+
+        function renderHangar() {
+            const data = MECH_DATA;
+
+            // Pilot Info
+            document.getElementById('pilot-name').textContent = data.pilot.name;
+            document.getElementById('metric-growth').textContent = `${data.pilot.metrics.growth.value} (${data.pilot.metrics.growth.trend})`;
+            document.getElementById('metric-wealth').textContent = `${data.pilot.metrics.wealth.value} (${data.pilot.metrics.wealth.trend})`;
+            document.getElementById('metric-inf').textContent = `${data.pilot.metrics.influence.value} (${data.pilot.metrics.influence.trend})`;
+            document.getElementById('kr0-status').textContent = `Progress: ${data.pilot.kr0.progress}% | Status: ${data.pilot.kr0.status}`;
+
+            // Mech List
+            const list = document.getElementById('mech-list');
+            list.innerHTML = '';
+            data.mechs.forEach(mech => {
+                const card = document.createElement('div');
+                card.className = 'mech-card';
+                card.onclick = () => launchMech(mech);
+                card.innerHTML = `
+                    <div style="color: var(--color-hangar); font-weight: bold; margin-bottom: 5px;">${mech.name}</div>
+                    <div style="font-size: 12px; color: #aaa; margin-bottom: 10px;">${mech.project_ref}</div>
+                    
+                    <div style="font-size: 11px; color: #ddd; margin-bottom: 5px; font-style: italic;">
+                        WHY: ${mech.why || '--'}
+                    </div>
+                    <div style="font-size: 11px; color: #ddd; margin-bottom: 10px;">
+                        WHAT: ${mech.what || '--'}
+                    </div>
+
+                    <div style="font-size: 10px; color: #888;">LOADOUT: ${mech.loadout.join(', ')}</div>
+                    <div style="margin-top: 10px; display: flex; gap: 5px; flex-wrap: wrap;">
+                        ${mech.tasks.map(t => `<span class="tag">${t.title}</span>`).join('')}
+                    </div>
+                    <div style="margin-top: 10px; text-align: right;">
+                        <span style="font-size: 10px; color: var(--color-hangar);">LAUNCH >></span>
+                    </div>
+                `;
+                list.appendChild(card);
+            });
+        }
+
+        function launchMech(mech) {
+            currentMech = mech;
+            switchScreen('screen-cockpit');
+
+            // Setup Cockpit
+            document.getElementById('active-mech-name').textContent = mech.name;
+
+            // Tasks
+            const taskList = document.getElementById('cockpit-task-list');
+            taskList.innerHTML = '';
+            mech.tasks.forEach(t => {
+                const div = document.createElement('div');
+                div.style.marginBottom = '10px';
+                div.style.borderBottom = '1px solid #333';
+                div.style.paddingBottom = '5px';
+                div.innerHTML = `
+                    <div style="color: #fff;">> ${t.title}</div>
+                    <div style="font-size: 10px; color: #aaa; margin-top: 2px;">HOW: ${t.how || '--'}</div>
+                    <div style="font-size: 10px; color: var(--color-cockpit); margin-top: 2px;">PROMPT: ${t.prompt ? t.prompt.substring(0, 50) + '...' : '--'}</div>
+                `;
+                taskList.appendChild(div);
+            });
+
+            // Focus Task (First one)
+            if (mech.tasks.length > 0) {
+                const t = mech.tasks[0];
+                document.getElementById('focus-task-title').textContent = t.title;
+                document.getElementById('focus-task-xp').textContent = `REWARD: ${t.xp}`;
+                // Show full prompt in reticle context if needed, or just keep it simple
+            } else {
+                document.getElementById('focus-task-title').textContent = "FREE FLIGHT";
+                document.getElementById('focus-task-xp').textContent = "EXPLORATION MODE";
+            }
+
+            // Start Timer
+            sessionStartTime = new Date();
+            timerInterval = setInterval(() => {
+                const now = new Date();
+                const diff = new Date(now - sessionStartTime);
+                document.getElementById('session-timer').textContent = diff.toISOString().substr(11, 8);
+            }, 1000);
+        }
+
+        function completeMission() {
+            clearInterval(timerInterval);
+            switchScreen('screen-debrief');
+
+            // Populate Debrief
+            document.getElementById('debrief-summary').textContent = `Completed session in ${currentMech.name}. Duration: ${document.getElementById('session-timer').textContent}`;
+        }
+
+        function returnToHangar() {
+            switchScreen('screen-hangar');
+            currentMech = null;
+        }
+
+        function switchScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+        }
+    </script>
+</body>
+
+</html>
