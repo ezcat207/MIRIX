@@ -1894,8 +1894,13 @@ async def get_procedural_memory(
 
 
 @app.get("/memory/resources")
-async def get_resource_memory(user_id: Optional[str] = None):
-    """Get resource memory (docs and files)"""
+async def get_resource_memory(
+    search: Optional[str] = None,
+    page: int = 1,
+    limit: int = 50,
+    user_id: Optional[str] = None
+):
+    """Get resource memory with search and pagination support"""
     if agent is None:
         raise HTTPException(status_code=500, detail="Agent not initialized")
 
@@ -1908,17 +1913,20 @@ async def get_resource_memory(user_id: Optional[str] = None):
         client = agent.client
         resource_manager = client.server.resource_memory_manager
 
-        # Get resource memory items using correct method name
-        resources = resource_manager.list_resources(
-            agent_state=agent.agent_states.resource_memory_agent_state,
+        # Calculate offset from page number
+        offset = (page - 1) * limit
+
+        # Use the new paginated method with search support
+        result = resource_manager.list_resource_items_paginated(
             actor=target_user,
-            limit=50,
-            timezone_str=target_user.timezone,
+            search_query=search,
+            limit=limit,
+            offset=offset,
         )
 
         # Transform to frontend format
         docs_files = []
-        for resource in resources:
+        for resource in result["items"]:
             # Fetch raw_memory details if references exist
             raw_memory_details = []
             if hasattr(resource, 'raw_memory_references') and resource.raw_memory_references:
@@ -1948,11 +1956,16 @@ async def get_resource_memory(user_id: Optional[str] = None):
                 }
             )
 
-        return docs_files
+        return {
+            "items": docs_files,
+            "total": result["total"],
+            "page": result["page"],
+            "pages": result["pages"],
+        }
 
     except Exception as e:
         print(f"Error retrieving resource memory: {str(e)}")
-        return []
+        return {"items": [], "total": 0, "page": 1, "pages": 0}
 
 
 @app.get("/memory/core")

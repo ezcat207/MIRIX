@@ -711,3 +711,73 @@ class ResourceMemoryManager:
                 raise NoResultFound(
                     f"Resource Memory record with id {resource_id} not found."
                 )
+
+    def list_resource_items_paginated(
+        self,
+        actor: "PydanticUser",
+        search_query: Optional[str] = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> dict:
+        """
+        List resource memory items with simple search and pagination (optimized for frontend).
+
+        Args:
+            actor: User requesting the resource memories
+            search_query: Optional search term to filter by (searches in id, title, summary, content, resource_type)
+            limit: Maximum number of items to return
+            offset: Number of items to skip (for pagination)
+
+        Returns:
+            Dictionary containing:
+                - items: List of resource memory items (Pydantic models)
+                - total: Total count of matching items
+                - page: Current page number
+                - pages: Total number of pages
+        """
+        from sqlalchemy import cast, func, or_, text
+        from sqlalchemy.types import DateTime
+
+        with self.session_maker() as session:
+            query = select(ResourceMemoryItem).where(
+                ResourceMemoryItem.user_id == actor.id
+            )
+
+            # Apply search filter
+            if search_query and search_query.strip():
+                search_term = f"%{search_query}%"
+                query = query.where(
+                    or_(
+                        ResourceMemoryItem.id.ilike(search_term),
+                        ResourceMemoryItem.title.ilike(search_term),
+                        ResourceMemoryItem.summary.ilike(search_term),
+                        ResourceMemoryItem.content.ilike(search_term),
+                        ResourceMemoryItem.resource_type.ilike(search_term),
+                    )
+                )
+
+            # Get total count
+            count_query = select(func.count()).select_from(query.subquery())
+            total_count = session.execute(count_query).scalar() or 0
+
+            # Apply ordering and pagination
+            query = query.order_by(
+                cast(
+                    text("resource_memory.last_modify ->> 'timestamp'"),
+                    DateTime,
+                ).desc()
+            )
+            query = query.limit(limit).offset(offset)
+
+            result = session.execute(query)
+            items = result.scalars().all()
+
+            current_page = (offset // limit) + 1 if limit > 0 else 1
+            total_pages = (total_count + limit - 1) // limit if limit > 0 else 1
+
+            return {
+                "items": [item.to_pydantic() for item in items],
+                "total": total_count,
+                "page": current_page,
+                "pages": total_pages,
+            }
