@@ -1288,4 +1288,114 @@ useEffect(() => {
 **状态 Phase 1**: ✅ 全部完成
 
 **优先级 Phase 2**: P1 (高)
-**状态 Phase 2**: 🔍 等待方案选择
+**状态 Phase 2**: 🚧 进行中
+
+---
+
+## 📝 实施记录
+
+### 2025-11-23 - Phase 2 任务完成记录
+
+#### ✅ 任务 8.1 完成 (2025-11-23)
+
+**实施内容**:
+1. **Raw Memory API** (Commit: 71092a7)
+   - 添加 `list_raw_memories()` 方法
+   - 支持搜索字段: id, source_app, source_url, ocr_text
+   - 返回格式: `{items, total, page, pages}`
+
+2. **Semantic Memory API** (Commit: 88a953a)
+   - 添加 `list_semantic_items_paginated()` 方法
+   - 支持搜索字段: id, name, summary, details
+   - 使用简化查询，避免干扰现有复杂搜索逻辑
+
+3. **Episodic Memory API** (Commit: 9f0223e)
+   - 添加 `list_episodic_items_paginated()` 方法
+   - 支持搜索字段: id, summary, details, event_type, actor
+   - 按 occurred_at 降序排序
+
+4. **Procedural Memory API** (Commit: 378d061)
+   - 添加 `list_procedural_items_paginated()` 方法
+   - 支持搜索字段: id, summary, entry_type
+   - 保留 steps 解析逻辑
+
+5. **Resource Memory API** (Commit: 44bcf65)
+   - 添加 `list_resource_items_paginated()` 方法
+   - 支持搜索字段: id, title, summary, content, resource_type
+   - 按 last_modify 时间戳降序排序
+
+**技术细节**:
+- 使用 SQLAlchemy `ilike()` 实现大小写不敏感搜索
+- 使用 `or_()` 组合多字段搜索
+- 使用 `func.count()` 获取总记录数
+- 分页计算: `offset = (page - 1) * limit`
+- 统一返回格式确保前端兼容性
+
+**遇到的问题**:
+- ❌ **问题**: Serena MCP 的 `insert_after_symbol` 工具失败，未实际修改文件
+- ✅ **解决**: 改用 `Edit` 工具直接在文件末尾添加新方法
+
+---
+
+#### ✅ 任务 8.3 完成 (2025-11-23)
+
+**实施内容**:
+1. **前端 API 调用适配** (Commit: cd28a1b)
+   - 修改 `fetchMemoryData()` 接受 `searchTerm` 和 `page` 参数
+   - 使用 `URLSearchParams` 构建查询参数
+   - 处理新 API 响应格式 `{items, total, page, pages}`
+   - 向后兼容旧 API（自动检测数组或对象格式）
+
+2. **搜索触发逻辑** (Commit: d011fab)
+   - 添加 `useEffect` 钩子监听 `searchQuery` 变化
+   - 实现 500ms 防抖，减少 API 调用
+   - 只在支持搜索的 tab 触发后端搜索
+
+3. **全部 Memory 类型支持** (Commit: 8dad902)
+   - 更新 `searchableTabs` 列表
+   - 添加: `episodic`, `procedural`, `resources`
+   - 现在所有 5 种 Memory 类型都支持后端搜索
+
+**技术细节**:
+```javascript
+// 防抖实现
+const searchTimeout = setTimeout(() => {
+  console.log('Triggering backend search:', searchQuery);
+  fetchMemoryData(activeSubTab, searchQuery, 1);
+}, 500);
+
+// 响应格式适配
+const memoryItems = data.items ? data.items : data;
+```
+
+**用户体验提升**:
+- ✅ 搜索不再限于前 50 条记录
+- ✅ 实时搜索反馈（500ms 延迟）
+- ✅ 修复双向链接 bug（Semantic → Raw Memory）
+
+---
+
+#### ⏳ 任务 8.2 待完成
+
+**待实施**:
+- 创建数据库迁移脚本
+- 为搜索字段添加索引（PostgreSQL GIN, SQLite B-tree）
+- 测试索引性能提升
+
+---
+
+#### ⏳ 任务 8.4 待完成
+
+**待测试**:
+- [ ] 基础搜索功能（搜索 Raw Memory ID）
+- [ ] 分页功能（Previous/Next 按钮）
+- [ ] 性能测试（1000+ 记录）
+- [ ] 双向链接验证（Semantic → Raw Memory）
+
+---
+
+**下一步**:
+1. 用户测试搜索功能（搜索之前失败的 Raw Memory ID）
+2. 添加分页 UI 组件（Previous/Next 按钮）
+3. 创建数据库索引迁移脚本
+4. 完整测试和验证
