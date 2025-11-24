@@ -866,3 +866,67 @@ class EpisodicMemoryManager:
         except Exception as e:
             print(f"Warning: Failed to parse embedding field: {e}")
             return None
+
+    def list_episodic_items_paginated(
+        self,
+        actor: "PydanticUser",
+        search_query: Optional[str] = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> dict:
+        """
+        List episodic memory items with simple search and pagination (optimized for frontend).
+
+        Args:
+            actor: User requesting the episodic memories
+            search_query: Optional search term to filter by (searches in id, summary, details, event_type, actor)
+            limit: Maximum number of items to return
+            offset: Number of items to skip (for pagination)
+
+        Returns:
+            Dictionary containing:
+                - items: List of episodic memory items (Pydantic models)
+                - total: Total count of matching items
+                - page: Current page number
+                - pages: Total number of pages
+        """
+        from sqlalchemy import func, or_
+
+        with self.session_maker() as session:
+            from mirix.orm.episodic_memory import EpisodicEvent
+
+            query = select(EpisodicEvent).where(EpisodicEvent.user_id == actor.id)
+
+            # Apply search filter
+            if search_query and search_query.strip():
+                search_term = f"%{search_query}%"
+                query = query.where(
+                    or_(
+                        EpisodicEvent.id.ilike(search_term),
+                        EpisodicEvent.summary.ilike(search_term),
+                        EpisodicEvent.details.ilike(search_term),
+                        EpisodicEvent.event_type.ilike(search_term),
+                        EpisodicEvent.actor.ilike(search_term),
+                    )
+                )
+
+            # Get total count
+            count_query = select(func.count()).select_from(query.subquery())
+            total_count = session.execute(count_query).scalar() or 0
+
+            # Apply ordering and pagination
+            query = query.order_by(EpisodicEvent.occurred_at.desc())
+            query = query.limit(limit).offset(offset)
+
+            result = session.execute(query)
+            items = result.scalars().all()
+
+            current_page = (offset // limit) + 1 if limit > 0 else 1
+            total_pages = (total_count + limit - 1) // limit if limit > 0 else 1
+
+            return {
+                "items": [item.to_pydantic() for item in items],
+                "total": total_count,
+                "page": current_page,
+                "pages": total_pages,
+            }

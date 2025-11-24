@@ -1646,8 +1646,13 @@ def _save_api_key_to_env_file(key_name: str, api_key: str):
 
 # Memory endpoints
 @app.get("/memory/episodic")
-async def get_episodic_memory(user_id: Optional[str] = None):
-    """Get episodic memory (past events)"""
+async def get_episodic_memory(
+    search: Optional[str] = None,
+    page: int = 1,
+    limit: int = 50,
+    user_id: Optional[str] = None
+):
+    """Get episodic memory with search and pagination support"""
     if agent is None:
         raise HTTPException(status_code=500, detail="Agent not initialized")
 
@@ -1661,17 +1666,20 @@ async def get_episodic_memory(user_id: Optional[str] = None):
         client = agent.client
         episodic_manager = client.server.episodic_memory_manager
 
-        # Get episodic events using the correct method name
-        events = episodic_manager.list_episodic_memory(
-            agent_state=agent.agent_states.episodic_memory_agent_state,
+        # Calculate offset from page number
+        offset = (page - 1) * limit
+
+        # Use the new paginated method with search support
+        result = episodic_manager.list_episodic_items_paginated(
             actor=target_user,
-            limit=50,
-            timezone_str=target_user.timezone,
+            search_query=search,
+            limit=limit,
+            offset=offset,
         )
 
         # Transform to frontend format
         episodic_items = []
-        for event in events:
+        for event in result["items"]:
             # Fetch raw_memory_references details if they exist
             raw_memory_details = []
             if hasattr(event, 'raw_memory_references') and event.raw_memory_references:
@@ -1691,7 +1699,12 @@ async def get_episodic_memory(user_id: Optional[str] = None):
                 }
             )
 
-        return episodic_items
+        return {
+            "items": episodic_items,
+            "total": result["total"],
+            "page": result["page"],
+            "pages": result["pages"],
+        }
 
     except Exception as e:
         print(f"Error retrieving episodic memory: {str(e)}")
