@@ -94,8 +94,8 @@ const ExistingMemory = ({ settings }) => {
     ));
   };
 
-  // Fetch memory data for each type
-  const fetchMemoryData = async (memoryType) => {
+  // Fetch memory data for each type with optional search and pagination
+  const fetchMemoryData = async (memoryType, searchTerm = '', page = 1) => {
     try {
       setLoading(true);
       setError(null);
@@ -127,7 +127,18 @@ const ExistingMemory = ({ settings }) => {
           return;
       }
 
-      const response = await queuedFetch(`${settings.serverUrl}${endpoint}`);
+      // Build URL with search and pagination parameters
+      const params = new URLSearchParams();
+      if (searchTerm && searchTerm.trim()) {
+        params.append('search', searchTerm.trim());
+      }
+      if (page > 1) {
+        params.append('page', page);
+      }
+
+      const url = `${settings.serverUrl}${endpoint}${params.toString() ? '?' + params.toString() : ''}`;
+      const response = await queuedFetch(url);
+
       if (!response.ok) {
         throw new Error(`Failed to fetch ${memoryType}: ${response.statusText}`);
       }
@@ -327,6 +338,23 @@ const ExistingMemory = ({ settings }) => {
       fetchMemoryData(activeSubTab);
     }
   }, [settings.lastBackendRefresh, settings.serverUrl, activeSubTab]);
+
+  // Trigger backend search when searchQuery changes (with debounce)
+  useEffect(() => {
+    // Only trigger backend search for tabs that support it
+    const searchableTabs = ['raw-memory', 'semantic'];
+    if (!searchableTabs.includes(activeSubTab)) {
+      return;
+    }
+
+    // Debounce: wait 500ms after user stops typing
+    const searchTimeout = setTimeout(() => {
+      console.log('Triggering backend search:', searchQuery);
+      fetchMemoryData(activeSubTab, searchQuery, 1);
+    }, 500);
+
+    return () => clearTimeout(searchTimeout);
+  }, [searchQuery, activeSubTab, settings.serverUrl]);
 
   const renderMemoryContent = () => {
     const currentViewMode = getCurrentViewMode();
