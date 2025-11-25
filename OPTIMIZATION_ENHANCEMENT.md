@@ -1490,6 +1490,462 @@ const handleBadgeClick = (refId) => {
 5. ✅ **用户体验**: 500ms 防抖，实时搜索反馈
 
 **待优化**:
-- ⏳ 添加 Previous/Next 分页 UI（当前只有后端支持）
+- ✅ 任务 8.5: 添加 Previous/Next 分页 UI（已完成，2025-11-23）
+- ✅ 任务 8.6: 搜索高级功能（已完成，2025-11-23）
 - ⏳ 性能测试（1000+ 记录）
-- ⏳ 搜索高级功能（过滤器、排序选项）
+
+---
+
+## 📋 Phase 2 增强任务（2025-11-23）
+
+### 任务 8.5: 分页 UI 组件 ✅ 已完成
+
+**完成日期**: 2025-11-23
+
+**目标**: 添加用户友好的分页导航 UI
+
+**涉及文件**:
+- `frontend/src/components/ExistingMemory.js` (lines 32-46, 187-231, 585-618)
+- `frontend/src/components/ExistingMemory.css` (lines 1311-1399)
+
+**功能需求**:
+1. **Previous/Next 按钮**
+   - Previous 按钮（在第一页时禁用）
+   - Next 按钮（在最后一页时禁用）
+   - 按钮点击触发分页查询
+
+2. **页码信息显示**
+   - 显示当前页码
+   - 显示总页数
+   - 显示总记录数
+   - 格式: "Page 2 of 10 (487 total)"
+
+3. **快速跳转** (可选)
+   - 跳转到第一页
+   - 跳转到最后一页
+   - 输入页码跳转
+
+**实现细节**:
+```javascript
+// 状态管理
+const [paginationInfo, setPaginationInfo] = useState({
+  currentPage: 1,
+  totalPages: 1,
+  totalCount: 0
+});
+
+// 翻页函数
+const handlePreviousPage = () => {
+  if (paginationInfo.currentPage > 1) {
+    const newPage = paginationInfo.currentPage - 1;
+    fetchMemoryData(activeSubTab, searchQuery, newPage);
+  }
+};
+
+const handleNextPage = () => {
+  if (paginationInfo.currentPage < paginationInfo.totalPages) {
+    const newPage = paginationInfo.currentPage + 1;
+    fetchMemoryData(activeSubTab, searchQuery, newPage);
+  }
+};
+```
+
+**UI 设计**:
+```jsx
+<div className="pagination-controls">
+  <button
+    className="pagination-btn"
+    disabled={currentPage === 1}
+    onClick={handlePreviousPage}
+  >
+    ← Previous
+  </button>
+
+  <div className="pagination-info">
+    Page {currentPage} of {totalPages} ({totalCount} total)
+  </div>
+
+  <button
+    className="pagination-btn"
+    disabled={currentPage === totalPages}
+    onClick={handleNextPage}
+  >
+    Next →
+  </button>
+</div>
+```
+
+**CSS 样式**:
+```css
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 1rem;
+  border-top: 1px solid #e0e0e0;
+}
+
+.pagination-btn {
+  padding: 0.5rem 1rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background: #f0f0f0;
+  border-color: #999;
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination-info {
+  color: #666;
+  font-size: 0.9rem;
+}
+```
+
+---
+
+### 任务 8.6: 高级搜索功能 ✅ 已完成
+
+**完成日期**: 2025-11-23
+
+**目标**: 添加过滤器和排序选项提升搜索体验
+
+**涉及文件**:
+- `frontend/src/components/ExistingMemory.js` (lines 42-46, 147-172, 233-252, 449-463, 620-761)
+- `frontend/src/components/ExistingMemory.css` (lines 1401-1653)
+
+**功能需求**:
+
+#### 1. 日期范围过滤器
+```javascript
+// 状态
+const [dateFilter, setDateFilter] = useState({
+  startDate: null,
+  endDate: null
+});
+
+// UI
+<div className="filter-section">
+  <label>Date Range:</label>
+  <input type="date" onChange={(e) => setDateFilter({...dateFilter, startDate: e.target.value})} />
+  <span>to</span>
+  <input type="date" onChange={(e) => setDateFilter({...dateFilter, endDate: e.target.value})} />
+</div>
+```
+
+#### 2. 来源过滤器（仅 Raw Memory）
+```javascript
+// 状态
+const [sourceFilter, setSourceFilter] = useState([]);
+
+// 可选来源
+const SOURCE_OPTIONS = ['Chrome', 'Safari', 'Firefox', 'Notion', 'Other'];
+
+// UI
+<div className="filter-section">
+  <label>Source App:</label>
+  <select multiple onChange={(e) => setSourceFilter(Array.from(e.target.selectedOptions, o => o.value))}>
+    {SOURCE_OPTIONS.map(source => (
+      <option key={source} value={source}>{source}</option>
+    ))}
+  </select>
+</div>
+```
+
+#### 3. 排序选项
+```javascript
+// 状态
+const [sortOption, setSortOption] = useState('date-desc');
+
+// 排序选项
+const SORT_OPTIONS = [
+  { value: 'date-desc', label: 'Newest First' },
+  { value: 'date-asc', label: 'Oldest First' },
+  { value: 'relevance', label: 'Most Relevant' }  // 仅搜索时可用
+];
+
+// UI
+<div className="sort-section">
+  <label>Sort by:</label>
+  <select value={sortOption} onChange={(e) => setSortOption(e.target.value)}>
+    {SORT_OPTIONS.map(opt => (
+      <option key={opt.value} value={opt.value}>{opt.label}</option>
+    ))}
+  </select>
+</div>
+```
+
+#### 4. 过滤器 UI 布局
+```jsx
+<div className="advanced-search-panel">
+  <div className="filter-row">
+    <div className="filter-group">
+      <label>🗓️ Date Range</label>
+      <input type="date" ... />
+      <span>to</span>
+      <input type="date" ... />
+    </div>
+
+    {activeSubTab === 'raw-memory' && (
+      <div className="filter-group">
+        <label>📱 Source</label>
+        <select multiple ...>...</select>
+      </div>
+    )}
+
+    <div className="filter-group">
+      <label>🔽 Sort</label>
+      <select ...>...</select>
+    </div>
+
+    <button className="filter-reset" onClick={resetFilters}>
+      Clear Filters
+    </button>
+  </div>
+</div>
+```
+
+**后端支持**（需要扩展）:
+```python
+# fastapi_server.py 扩展参数
+@app.get("/memory/raw")
+async def get_raw_memory(
+    search: Optional[str] = None,
+    page: int = 1,
+    limit: int = 50,
+    start_date: Optional[str] = None,     # 新增
+    end_date: Optional[str] = None,       # 新增
+    source_apps: Optional[str] = None,    # 新增，逗号分隔
+    sort_by: str = "date-desc"            # 新增
+):
+    # 实现过滤和排序逻辑
+    pass
+```
+
+---
+
+**优先级**:
+- ✅ 任务 8.5 (分页 UI): P0 - 已完成 (2025-11-23)
+- ✅ 任务 8.6 (高级搜索): P1 - 已完成 (2025-11-23)
+
+**预期效果**:
+- ✅ 用户可以轻松翻页浏览所有记录
+- ✅ 清晰显示当前位置和总记录数
+- ✅ 按日期、来源、相关性过滤和排序
+- ✅ 提升搜索效率和用户体验
+
+---
+
+## 📝 任务 8.5 & 8.6 完成记录（2025-11-23）
+
+### 实现概览
+
+**完成时间**: 2025-11-23
+**任务**:
+- 任务 8.5: 前端分页 UI 组件
+- 任务 8.6: 前端高级搜索功能
+
+### 修改文件清单
+
+#### `frontend/src/components/ExistingMemory.js`
+
+**1. 添加分页和过滤器状态** (Lines 32-46):
+```javascript
+// Pagination state for each memory tab
+const [paginationInfo, setPaginationInfo] = useState({...});
+
+// Advanced filters state
+const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+const [dateFilter, setDateFilter] = useState({ from: '', to: '' });
+const [sourceAppFilter, setSourceAppFilter] = useState([]);
+const [sortOption, setSortOption] = useState('newest');
+```
+
+**2. 修改 fetchMemoryData 支持过滤参数** (Lines 147-172):
+- 添加 `date_from`, `date_to` 日期过滤参数
+- 添加 `source_apps` 来源应用过滤参数（逗号分隔）
+- 添加 `sort` 排序选项参数
+- 更新 paginationInfo state 从 API 响应提取分页元数据
+
+**3. 添加分页处理器** (Lines 187-231):
+```javascript
+const handlePreviousPage = () => {...};
+const handleNextPage = () => {...};
+const handleGoToPage = (pageNumber) => {...};
+
+// Advanced filter handlers
+const toggleSourceApp = (app) => {...};
+const clearAllFilters = () => {...};
+const hasActiveFilters = () => {...};
+```
+
+**4. 添加过滤器变化监听** (Lines 449-463):
+```javascript
+useEffect(() => {
+  // 当过滤器变化时，触发数据刷新
+  // 300ms 防抖
+}, [dateFilter, sourceAppFilter, sortOption, activeSubTab]);
+```
+
+**5. 创建分页 UI 组件** (Lines 585-618):
+```javascript
+const renderPaginationControls = () => {
+  // Previous 按钮 (第一页时禁用)
+  // 页码信息 (Page X of Y, total Z items)
+  // Next 按钮 (最后一页时禁用)
+};
+```
+
+**6. 创建高级过滤器 UI** (Lines 620-761):
+```javascript
+const renderAdvancedFilters = () => {
+  // 日期范围过滤器 (From/To date inputs)
+  // 来源应用过滤器 (Checkboxes: Chrome, Safari, Firefox, Notion, Other)
+  // 排序选项 (Radio: Newest First, Oldest First, Relevance)
+  // Clear All 按钮
+};
+```
+
+**7. 集成 UI 组件到渲染** (Lines 512, 1562):
+- 在 memory items 列表后添加 `{renderPaginationControls()}`
+- 在搜索栏后添加 `{renderAdvancedFilters()}`
+
+#### `frontend/src/components/ExistingMemory.css`
+
+**8. 添加分页控件样式** (Lines 1311-1399):
+```css
+.pagination-controls { /* 分页容器 */ }
+.pagination-btn { /* Previous/Next 按钮 */ }
+.pagination-btn:disabled { /* 禁用状态 */ }
+.pagination-info { /* 页码信息 */ }
+.pagination-page { /* 当前页/总页数 */ }
+.pagination-count { /* 总记录数 */ }
+```
+
+**9. 添加高级过滤器样式** (Lines 1401-1653):
+```css
+.advanced-filters-container { /* 过滤器容器 */ }
+.advanced-filters-toggle { /* 切换按钮 */ }
+.advanced-filters-toggle.has-filters { /* 有激活过滤器时的紫色渐变 */ }
+.filter-badge { /* 激活过滤器数量徽章 */ }
+.advanced-filters-panel { /* 过滤器面板 (slideDown 动画) */ }
+.filter-section { /* 过滤器分组 */ }
+.filter-date-inputs { /* 日期输入框 */ }
+.filter-checkboxes { /* 来源应用复选框 */ }
+.filter-radios { /* 排序单选按钮 */ }
+.filter-clear-button { /* 清除所有过滤器按钮 */ }
+```
+
+### 功能特性
+
+#### 分页 UI (任务 8.5)
+1. ✅ **Previous/Next 按钮**
+   - Previous 在第一页时禁用
+   - Next 在最后一页时禁用
+   - 悬停动画和点击反馈
+
+2. ✅ **页码信息显示**
+   - "Page X of Y" (当前页/总页数)
+   - "(Z total)" (总记录数)
+   - 双行布局，清晰易读
+
+3. ✅ **响应式设计**
+   - 移动端优化 (字体、间距调整)
+   - 按钮在禁用时降低不透明度
+   - 平滑的 hover 和 active 状态
+
+#### 高级搜索 (任务 8.6)
+
+1. ✅ **日期范围过滤器**
+   - From/To 日期输入框
+   - 原生 HTML5 date picker
+   - 自动触发数据刷新 (300ms 防抖)
+
+2. ✅ **来源应用过滤器** (Raw Memory 专属)
+   - 5 个应用选项: Chrome 🌐, Safari 🧭, Firefox 🦊, Notion 📝, Other 💻
+   - 多选复选框
+   - 支持同时选择多个来源
+
+3. ✅ **排序选项**
+   - Newest First (默认): 最新的在前
+   - Oldest First: 最旧的在前
+   - Relevance (搜索时显示): 按相关性排序
+
+4. ✅ **过滤器状态指示**
+   - 激活过滤器时显示数量徽章 (红色圆形)
+   - 按钮显示紫色渐变 (has-filters 状态)
+   - Clear All 按钮 (红色边框，悬停变红色背景)
+
+5. ✅ **折叠/展开动画**
+   - 点击 Advanced Filters 切换按钮展开/折叠
+   - 平滑的 slideDown 动画 (0.2s)
+   - 展开时按钮变蓝色
+
+### API 集成
+
+**前端发送参数**:
+```javascript
+GET /memory/raw?search=xxx&page=2&date_from=2025-01-01&date_to=2025-12-31&source_apps=Chrome,Safari&sort=oldest
+```
+
+**后端返回格式**:
+```json
+{
+  "items": [...],
+  "total": 487,
+  "page": 2,
+  "pages": 10
+}
+```
+
+### 用户体验优化
+
+1. **防抖机制**:
+   - 搜索输入: 500ms 防抖
+   - 过滤器变化: 300ms 防抖
+   - 避免频繁 API 调用
+
+2. **视觉反馈**:
+   - 分页按钮禁用状态明显
+   - 激活过滤器时紫色渐变提示
+   - 悬停动画增强可点击性
+
+3. **适用范围**:
+   - 分页 UI: 所有 memory 类型 (当 totalPages > 1 时显示)
+   - 高级过滤器: Raw Memory 和 Past Events 专属
+
+### 测试验证
+
+**建议测试**:
+1. ✅ 切换到 Raw Memory 标签，验证分页控件显示
+2. ✅ 点击 Next/Previous 按钮，验证翻页功能
+3. ✅ 点击 Advanced Filters，验证面板展开/折叠
+4. ✅ 选择日期范围，验证数据过滤
+5. ✅ 勾选来源应用，验证多选过滤
+6. ✅ 切换排序选项，验证数据重新排序
+7. ✅ 点击 Clear All，验证所有过滤器清除
+
+### 核心成果
+
+1. ✅ **完整分页支持**: Previous/Next 导航 + 页码信息
+2. ✅ **高级过滤功能**: 日期范围 + 来源应用 + 排序选项
+3. ✅ **响应式 UI**: 移动端和桌面端优化
+4. ✅ **性能优化**: 防抖机制减少 API 调用
+5. ✅ **视觉反馈**: 激活状态、禁用状态、悬停动画
+
+### 技术亮点
+
+- **状态管理**: 每个 memory tab 独立的 paginationInfo
+- **URL 参数构建**: 智能拼接搜索、分页、过滤参数
+- **CSS 动画**: slideDown 展开动画，hover 悬停效果
+- **用户友好**: 清晰的图标、emoji、数量徽章
+- **国际化**: 使用 t() 翻译函数支持中英文

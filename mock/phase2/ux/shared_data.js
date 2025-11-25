@@ -1,90 +1,110 @@
 const SHARED_DATA = {
     user: {
-        name: "Player One",
-        level: 24,
-        class: "System Architect",
-        xp: { current: 2450, max: 3000 },
+        name: "Power",
+        level: 25,
+        class: "Strategic Executor",
+        xp: { current: 2800, max: 3000 },
         attributes: {
-            intelligence: 85, // Learning
-            charisma: 42,     // Communication
-            endurance: 60,    // Execution
-            creativity: 75    // System Building
+            growth_rate: 85,    // O2 Metric: Capability
+            wealth_flow: 42,    // O2 Metric: Income
+            influence: 60,      // O2 Metric: Influence
+            clarity: 75         // KR0 Metric: Review Quality
         }
     },
-    goals: [
+    okrs: [
         {
-            id: "g1",
-            title: "Master Structured Communication",
-            type: "Learning",
-            progress: 65,
+            id: "o2",
+            code: "O2",
+            title: "Personal Growth (Q4)",
+            metric: "Growth Rate",
+            progress: 45,
+            krs: [
+                {
+                    id: "kr0",
+                    code: "KR0",
+                    title: "Active Review (Highest Priority)",
+                    status: "At Risk",
+                    progress: 30,
+                    projects: ["p1", "p3"] // MIRIX, VeryLoving
+                },
+                {
+                    id: "kr1",
+                    code: "KR1",
+                    title: "Capability Growth",
+                    status: "On Track",
+                    progress: 60,
+                    projects: ["p1"] // MIRIX
+                }
+            ]
+        }
+    ],
+    projects: [
+        {
+            id: "p1",
+            name: "MIRIX",
+            type: "Dev",
+            priority: "High",
             status: "Active",
-            rpg_context: {
-                quest_name: "The Bard's Tongue",
-                reward: "+5 Charisma, +200 XP",
-                difficulty: "Hard"
-            },
-            cockpit_context: {
-                module: "COMM_UPLINK",
-                signal_strength: "65%",
-                drift: "-5% (Warning)"
-            }
+            context: "Building Phase 2 SDK",
+            tasks_today: ["t1", "t2"]
         },
         {
-            id: "g2",
-            title: "Build Personal Palantir v2",
-            type: "Execution",
-            progress: 40,
-            status: "On Track",
-            rpg_context: {
-                quest_name: "Forge of the Oracle",
-                reward: "+10 Intelligence, +500 XP",
-                difficulty: "Epic"
-            },
-            cockpit_context: {
-                module: "SYS_CORE",
-                integrity: "98%",
-                uptime: "14d 2h"
-            }
+            id: "p2",
+            name: "Dad & Daughter",
+            type: "Life",
+            priority: "Medium",
+            status: "Active",
+            context: "Quality Time",
+            tasks_today: ["t3"]
+        },
+        {
+            id: "p3",
+            name: "VeryLoving",
+            type: "Biz",
+            priority: "Low",
+            status: "Pending",
+            context: "Maintenance",
+            tasks_today: []
         }
     ],
     daily_tasks: [
         {
             id: "t1",
-            title: "Analyze 3 VC Pitch Decks",
-            goal_id: "g1",
-            completed: true,
-            rpg_val: "+50 XP",
-            cockpit_val: "Input: 3 Records"
+            title: "Design Phase 2 Ontology",
+            project_id: "p1",
+            completed: false,
+            rpg_val: "+100 XP (Intelligence)",
+            cockpit_val: "Focus: Deep Work"
         },
         {
             id: "t2",
-            title: "Refactor OCR Module",
-            goal_id: "g2",
-            completed: false,
-            rpg_val: "+100 XP",
-            cockpit_val: "Pending Commit"
+            title: "Fix Chat History Bug",
+            project_id: "p1",
+            completed: true,
+            rpg_val: "+50 XP (Engineering)",
+            cockpit_val: "Status: Done"
         },
         {
             id: "t3",
-            title: "Reach out to 1 Mentor",
-            goal_id: "g1",
+            title: "Read Bedtime Story",
+            project_id: "p2",
             completed: false,
-            rpg_val: "+30 XP",
-            cockpit_val: "Outbound: 0/1"
+            rpg_val: "+30 XP (Love)",
+            cockpit_val: "Mode: Disconnect"
         }
     ],
     insights: [
         {
             type: "warning",
-            msg: "Communication structure degrading in afternoon meetings.",
-            rpg_msg: "Debuff Detected: 'Mental Fatigue' (-10 CHA)",
-            cockpit_msg: "Alert: Signal Noise Ratio High (14:00-16:00)"
+            msg: "KR0 (Active Review) is falling behind schedule.",
+            rpg_msg: "Oracle Alert: Review ritual missed yesterday.",
+            cockpit_msg: "Suggestion: Schedule 15m review at 20:00."
         },
         {
             type: "success",
-            msg: "System uptime is perfect this week.",
-            rpg_msg: "Buff Active: 'Flow State' (+20% XP Gain)",
-            cockpit_msg: "Status: Nominal. Efficiency Index 1.2x"
+            msg: "MIRIX development velocity is high.",
+            rpg_msg: "Buff: 'Flow State' active (+20% XP).",
+            cockpit_msg: "System: Optimal Performance."
         }
     ]
 };

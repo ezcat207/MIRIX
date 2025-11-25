@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>MIRIX COCKPIT // FLIGHT DECK</title>
+    <title>MIRIX COCKPIT // EXECUTION MODE</title>
     <link rel="stylesheet" href="style.css">
     <script src="../shared_data.js"></script>
 </head>
@@ -17,13 +17,21 @@
                 <span>SYSTEM ONLINE</span>
             </div>
             <div id="clock">00:00:00</div>
-            <div class="mode-switch" onclick="toggleMode()">MODE: CRUISE</div>
+            <div class="mode-switch" onclick="toggleMode()">MODE: EXECUTION</div>
         </div>
 
-        <!-- Left Panel: Navigation -->
+        <!-- Left Panel: Project Context -->
         <div class="hud-panel nav-panel">
-            <div class="hud-title">NAVIGATION</div>
-            <div id="goal-list">
+            <div class="hud-title">ACTIVE PROJECT</div>
+            <div id="project-context" style="margin-bottom: 20px;">
+                <div style="font-size: 16px; color: var(--hud-green); font-weight: bold;" id="active-project-name">--
+                </div>
+                <div style="font-size: 10px; color: var(--hud-amber); margin-top: 5px;" id="active-project-context">--
+                </div>
+            </div>
+
+            <div class="hud-title">TASK QUEUE</div>
+            <div id="task-queue">
                 <!-- Populated by JS -->
             </div>
         </div>
@@ -31,34 +39,39 @@
         <!-- Center View: Focus -->
         <div class="center-view">
             <div class="focus-reticle">
+                <div style="position: absolute; top: 10px; right: 10px; font-size: 10px; color: var(--hud-dim);">CURRENT
+                    OBJECTIVE</div>
                 <div class="current-task" id="focus-task">--</div>
                 <div class="task-meta" id="focus-meta">--</div>
-                <div style="margin-top: 20px; font-size: 12px; color: var(--hud-green);">
-                    [ ACTION REQUIRED ]
+
+                <!-- Flow State Indicator -->
+                <div style="margin-top: 40px; width: 80%; text-align: center;">
+                    <div style="font-size: 10px; margin-bottom: 5px;">FLOW STATE INTEGRITY</div>
+                    <div class="gauge-bar" style="width: 100%; height: 4px;">
+                        <div class="gauge-fill" style="width: 92%;"></div>
+                    </div>
                 </div>
             </div>
         </div>
 
         <!-- Right Panel: Systems -->
         <div class="hud-panel sys-panel">
-            <div class="hud-title">SYSTEMS</div>
+            <div class="hud-title">METRICS</div>
 
             <div class="gauge-row">
-                <span>ENERGY</span>
-                <div class="gauge-bar">
-                    <div class="gauge-fill" style="width: 80%;"></div>
-                </div>
+                <span>SESSION TIME</span>
+                <span style="color: var(--hud-green);">01:42:15</span>
             </div>
             <div class="gauge-row">
-                <span>FOCUS</span>
+                <span>FOCUS SCORE</span>
                 <div class="gauge-bar">
-                    <div class="gauge-fill" style="width: 95%;"></div>
+                    <div class="gauge-fill" style="width: 88%;"></div>
                 </div>
             </div>
 
             <div style="margin-top: 20px; border-top: 1px solid var(--hud-dim); padding-top: 10px;">
                 <div class="hud-title" style="background-color: transparent; color: var(--hud-green); padding: 0;">
-                    TELEMETRY</div>
+                    NAVIGATOR LOG</div>
                 <div id="telemetry-log" style="font-size: 10px; color: var(--hud-amber);">
                     <!-- Populated by JS -->
                 </div>
@@ -67,7 +80,7 @@
 
         <!-- Bottom Bar: Alerts -->
         <div class="alert-panel">
-            <span style="color: var(--hud-red); font-weight: bold;">WARNINGS:</span>
+            <span style="color: var(--hud-green); font-weight: bold;">NAVIGATOR:</span>
             <div id="alert-ticker" style="flex: 1;">
                 <!-- Populated by JS -->
             </div>
@@ -84,47 +97,54 @@
                 document.getElementById('clock').textContent = now.toLocaleTimeString();
             }, 1000);
 
-            // Goals (Nav)
-            const goalList = document.getElementById('goal-list');
-            data.goals.forEach((g, index) => {
+            // Active Project (Simulate picking the first active one)
+            const activeProject = data.projects.find(p => p.status === 'Active');
+            if (activeProject) {
+                document.getElementById('active-project-name').textContent = activeProject.name;
+                document.getElementById('active-project-context').textContent = `>> ${activeProject.context}`;
+            }
+
+            // Task Queue
+            const taskQueue = document.getElementById('task-queue');
+            data.daily_tasks.forEach(t => {
                 const div = document.createElement('div');
-                div.className = `goal-item ${index === 0 ? 'active' : ''}`;
+                div.className = `goal-item ${!t.completed ? 'active' : ''}`;
+                div.style.opacity = t.completed ? '0.5' : '1';
                 div.innerHTML = `
-                    <div class="goal-name">${g.cockpit_context.module}</div>
-                    <div class="goal-metric">Signal: ${g.cockpit_context.signal_strength || g.cockpit_context.integrity}</div>
+                    <div class="goal-name" style="font-size:12px;">${t.title}</div>
+                    <div class="goal-metric">${t.cockpit_val}</div>
                 `;
-                goalList.appendChild(div);
+                taskQueue.appendChild(div);
             });
 
             // Focus Task
             const activeTask = data.daily_tasks.find(t => !t.completed) || data.daily_tasks[0];
             document.getElementById('focus-task').textContent = activeTask.title;
-            document.getElementById('focus-meta').textContent = `Input: ${activeTask.cockpit_val}`;
+            document.getElementById('focus-meta').textContent = `Project: ${activeProject ? activeProject.name : 'Unknown'}`;
 
             // Telemetry
             const telemetry = document.getElementById('telemetry-log');
-            data.daily_tasks.forEach(t => {
+            data.insights.forEach(ins => {
                 const div = document.createElement('div');
                 div.style.marginBottom = '5px';
-                div.textContent = `> ${t.id.toUpperCase()}: ${t.completed ? 'COMPLETE' : 'PENDING'}`;
-                if (t.completed) div.style.color = 'var(--hud-dim)';
+                div.textContent = `> ${ins.cockpit_msg}`;
                 telemetry.appendChild(div);
             });
 
             // Alerts
             const alerts = document.getElementById('alert-ticker');
-            data.insights.forEach(ins => {
+            const latestInsight = data.insights[0];
+            if (latestInsight) {
                 const span = document.createElement('span');
                 span.className = 'alert-msg';
-                span.style.marginRight = '20px';
-                span.style.color = ins.type === 'warning' ? 'var(--hud-red)' : 'var(--hud-green)';
-                span.textContent = ins.cockpit_msg;
+                span.style.color = latestInsight.type === 'warning' ? 'var(--hud-red)' : 'var(--hud-green)';
+                span.textContent = latestInsight.cockpit_msg;
                 alerts.appendChild(span);
-            });
+            }
         });
 
         function toggleMode() {
-            alert("Mode switching simulation: Would toggle between 'Academy' and 'Forge' workspaces.");
+            alert("Switching to RPG Mode (Headquarters)...");
         }
     </script>
 </body>

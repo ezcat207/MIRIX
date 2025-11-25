@@ -28,4 +28,7 @@ SKIP_META_MEMORY_MANAGER = False
 WITH_REFLEXION_AGENT = False
 
 # Whether to use the background agent
-WITH_BACKGROUND_AGENT = False
+
+# Phase 2: Mech Pilot Constants
+PROJECTS_MD_PATH = "/Volumes/Lexar/AISync90/MIRIX/mock/projects.json"
+TOOLS_MD_PATH = "/Users/power/Documents/obsidian-out-of-the-box/tools.md"

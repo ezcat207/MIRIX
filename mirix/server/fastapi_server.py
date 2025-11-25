@@ -18,6 +18,12 @@ from ..agent.agent_wrapper import AgentWrapper
 from ..functions.mcp_client import StdioServerConfig, get_mcp_client_manager
 from ..services.mcp_marketplace import get_mcp_marketplace
 from ..services.mcp_tool_registry import get_mcp_tool_registry
+from ..services.mech_manager import MechManager
+from ..agent.app_constants import PROJECTS_MD_PATH
+
+# Initialize MechManager
+mech_manager = MechManager(PROJECTS_MD_PATH)
+mech_manager.start()
 
 logger = logging.getLogger(__name__)
 
@@ -3276,6 +3282,77 @@ async def check_reminders(
             success=False,
             error=str(e)
         )
+
+
+
+# ----------------------
+# Mech Pilot Endpoints
+# ----------------------
+
+@app.get("/mech/status")
+async def get_mech_status():
+    return mech_manager.get_status()
+
+class LaunchMechRequest(BaseModel):
+    mech_id: str
+
+@app.post("/mech/launch")
+async def launch_mech(request: LaunchMechRequest):
+    success = mech_manager.launch_mech(request.mech_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Mech not found")
+    return {"success": True}
+
+class CompleteTaskRequest(BaseModel):
+    task_title: str
+
+@app.post("/mech/complete_task")
+async def complete_task(request: CompleteTaskRequest):
+    mech_manager.complete_task(request.task_title)
+    return {"success": True}
+
+class DebriefRequest(BaseModel):
+    reflection: str
+    metrics: Dict[str, float]
+
+@app.post("/mech/debrief")
+async def debrief_mech(request: DebriefRequest):
+    success = mech_manager.debrief_session(request.reflection, request.metrics)
+    if not success:
+        raise HTTPException(status_code=400, detail="Not in active session")
+    return {"success": True}
+
+
+@app.get("/mech/sessions")
+async def get_mech_sessions():
+    """Get all mech session history from database."""
+    try:
+        from mirix.database.sqlite_functions import session_scope
+        from mirix.orm.mech_session import MechSession
+        
+        with session_scope() as session:
+            all_sessions = session.query(MechSession).order_by(MechSession.start_time.desc()).all()
+            
+            return {
+                "sessions": [
+                    {
+                        "id": s.id,
+                        "mech_id": s.mech_id,
+                        "start_time": s.start_time.isoformat() if s.start_time else None,
+                        "end_time": s.end_time.isoformat() if s.end_time else None,
+                        "wealth_generated": s.wealth_generated,
+                        "influence_gained": s.influence_gained,
+                        "capability_growth": s.capability_growth,
+                        "focus_score": s.focus_score,
+                        "reflection": s.reflection,
+                        "tasks_completed": s.tasks_completed
+                    }
+                    for s in all_sessions
+                ]
+            }
+    except Exception as e:
+        logger.error(f"Failed to fetch sessions: {e}")
+        return {"sessions": []}
 
 
 if __name__ == "__main__":

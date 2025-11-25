@@ -2,15 +2,17 @@ import React, { useState, useEffect } from 'react';
 import HangarView from './components/HangarView';
 import CockpitView from './components/CockpitView';
 import DebriefView from './components/DebriefView';
+import StatsView from './components/StatsView';
 import './styles/MechPilot.css';
 
 const API_BASE = '/api'; // Proxy configured in vite.config.js
 
 const MechPilot = () => {
-    const [view, setView] = useState('HANGAR'); // HANGAR, COCKPIT, DEBRIEF
+    const [view, setView] = useState('HANGAR'); // HANGAR, COCKPIT, DEBRIEF, STATS
     const [status, setStatus] = useState(null);
     const [activeMech, setActiveMech] = useState(null);
     const [sessionData, setSessionData] = useState(null);
+    const [sessions, setSessions] = useState([]);
 
     const [error, setError] = useState(null);
 
@@ -99,6 +101,23 @@ const MechPilot = () => {
         }
     };
 
+    const handleViewStats = async () => {
+        try {
+            const res = await fetch(`${API_BASE}/mech/sessions`);
+            if (res.ok) {
+                const data = await res.json();
+                setSessions(data.sessions || []);
+                setView('STATS');
+            }
+        } catch (err) {
+            console.error("Failed to fetch sessions:", err);
+        }
+    };
+
+    const handleBackToHangar = () => {
+        setView('HANGAR');
+    };
+
     if (error) return (
         <div className="mech-pilot-container" style={{ justifyContent: 'center', alignItems: 'center', flexDirection: 'column', color: 'var(--color-alert)' }}>
             <div style={{ fontSize: '24px', marginBottom: '10px' }}>SYSTEM FAILURE</div>
@@ -117,12 +136,14 @@ const MechPilot = () => {
                     mechs={status.mechs}
                     dailyHistory={status.daily_history}
                     onLaunch={handleLaunch}
+                    onViewStats={handleViewStats}
                 />
             )}
 
             {view === 'COCKPIT' && (
                 <CockpitView
                     activeMech={activeMech}
+                    tacticalContext={status?.tactical_context}
                     onCompleteTask={handleCompleteTask}
                     onMissionComplete={handleMissionComplete}
                 />
@@ -132,6 +153,13 @@ const MechPilot = () => {
                 <DebriefView
                     sessionData={sessionData}
                     onSubmit={handleDebriefSubmit}
+                />
+            )}
+
+            {view === 'STATS' && (
+                <StatsView
+                    sessions={sessions}
+                    onBack={handleBackToHangar}
                 />
             )}
         </div>

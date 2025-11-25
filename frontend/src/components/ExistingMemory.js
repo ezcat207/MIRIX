@@ -28,6 +28,23 @@ const ExistingMemory = ({ settings }) => {
   const [highlightedRawMemoryId, setHighlightedRawMemoryId] = useState(null);
   const [showOnlyReferencedRaw, setShowOnlyReferencedRaw] = useState(false);
   const [highlightedMemoryId, setHighlightedMemoryId] = useState(null);
+
+  // State for pagination
+  const [paginationInfo, setPaginationInfo] = useState({
+    'past-events': { currentPage: 1, totalPages: 1, totalCount: 0 },
+    'semantic': { currentPage: 1, totalPages: 1, totalCount: 0 },
+    'procedural': { currentPage: 1, totalPages: 1, totalCount: 0 },
+    'docs-files': { currentPage: 1, totalPages: 1, totalCount: 0 },
+    'raw-memory': { currentPage: 1, totalPages: 1, totalCount: 0 },
+    'credentials': { currentPage: 1, totalPages: 1, totalCount: 0 }
+  });
+
+  // State for advanced filters
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [dateFilter, setDateFilter] = useState({ from: '', to: '' });
+  const [sourceAppFilter, setSourceAppFilter] = useState([]);
+  const [sortOption, setSortOption] = useState('newest'); // 'newest', 'oldest', 'relevance'
+
   // State for memory view modes (list or tree) for each memory type
   const [viewModes, setViewModes] = useState({
     'past-events': 'list',
@@ -127,13 +144,31 @@ const ExistingMemory = ({ settings }) => {
           return;
       }
 
-      // Build URL with search and pagination parameters
+      // Build URL with search, pagination, and filter parameters
       const params = new URLSearchParams();
       if (searchTerm && searchTerm.trim()) {
         params.append('search', searchTerm.trim());
       }
       if (page > 1) {
         params.append('page', page);
+      }
+
+      // Add date filters (for raw-memory and episodic)
+      if (dateFilter.from) {
+        params.append('date_from', dateFilter.from);
+      }
+      if (dateFilter.to) {
+        params.append('date_to', dateFilter.to);
+      }
+
+      // Add source app filter (for raw-memory)
+      if (sourceAppFilter.length > 0) {
+        params.append('source_apps', sourceAppFilter.join(','));
+      }
+
+      // Add sort option
+      if (sortOption && sortOption !== 'newest') {
+        params.append('sort', sortOption);
       }
 
       const url = `${settings.serverUrl}${endpoint}${params.toString() ? '?' + params.toString() : ''}`;
@@ -153,12 +188,67 @@ const ExistingMemory = ({ settings }) => {
         ...prev,
         [memoryType]: memoryItems
       }));
+
+      // Update pagination info if response includes pagination data
+      if (data.total !== undefined && data.page !== undefined && data.pages !== undefined) {
+        setPaginationInfo(prev => ({
+          ...prev,
+          [memoryType]: {
+            currentPage: data.page,
+            totalPages: data.pages,
+            totalCount: data.total
+          }
+        }));
+      }
     } catch (err) {
       console.error(`Error fetching ${memoryType}:`, err);
       setError(err.message);
     } finally {
       setLoading(false);
     }
+  };
+
+  // Pagination handlers
+  const handlePreviousPage = () => {
+    const currentInfo = paginationInfo[activeSubTab];
+    if (currentInfo && currentInfo.currentPage > 1) {
+      fetchMemoryData(activeSubTab, searchQuery, currentInfo.currentPage - 1);
+    }
+  };
+
+  const handleNextPage = () => {
+    const currentInfo = paginationInfo[activeSubTab];
+    if (currentInfo && currentInfo.currentPage < currentInfo.totalPages) {
+      fetchMemoryData(activeSubTab, searchQuery, currentInfo.currentPage + 1);
+    }
+  };
+
+  const handleGoToPage = (pageNumber) => {
+    const currentInfo = paginationInfo[activeSubTab];
+    if (currentInfo && pageNumber >= 1 && pageNumber <= currentInfo.totalPages) {
+      fetchMemoryData(activeSubTab, searchQuery, pageNumber);
+    }
+  };
+
+  // Advanced filter handlers
+  const toggleSourceApp = (app) => {
+    setSourceAppFilter(prev => {
+      if (prev.includes(app)) {
+        return prev.filter(a => a !== app);
+      } else {
+        return [...prev, app];
+      }
+    });
+  };
+
+  const clearAllFilters = () => {
+    setDateFilter({ from: '', to: '' });
+    setSourceAppFilter([]);
+    setSortOption('newest');
+  };
+
+  const hasActiveFilters = () => {
+    return dateFilter.from || dateFilter.to || sourceAppFilter.length > 0 || sortOption !== 'newest';
   };
 
   // Get all raw_memory ids that are referenced by semantic/episodic memories
@@ -356,6 +446,22 @@ const ExistingMemory = ({ settings }) => {
     return () => clearTimeout(searchTimeout);
   }, [searchQuery, activeSubTab, settings.serverUrl]);
 
+  // Trigger data refresh when filters change
+  useEffect(() => {
+    // Only refresh for tabs that have advanced filters
+    if (!['raw-memory', 'past-events'].includes(activeSubTab)) {
+      return;
+    }
+
+    // Debounce: wait 300ms after filter changes
+    const filterTimeout = setTimeout(() => {
+      console.log('Filters changed, refreshing data');
+      fetchMemoryData(activeSubTab, searchQuery, 1);
+    }, 300);
+
+    return () => clearTimeout(filterTimeout);
+  }, [dateFilter, sourceAppFilter, sortOption, activeSubTab, settings.serverUrl]);
+
   const renderMemoryContent = () => {
     const currentViewMode = getCurrentViewMode();
 
@@ -444,25 +550,28 @@ const ExistingMemory = ({ settings }) => {
     }
 
     return (
-      <div className="memory-items">
-        {filteredData.map((item, index) => (
-          activeSubTab === 'core-understanding' ? (
-            // For core memory, don't add extra wrapper to avoid double containers
-            <div key={index} id={`memory-${item.id}`}>
-              {renderMemoryItem(item, activeSubTab, index)}
-            </div>
-          ) : (
-            // For other memory types, keep the wrapper
-            <div
-              key={index}
-              id={`memory-${item.id}`}
-              className={`memory-item ${highlightedMemoryId === item.id ? 'highlighted' : ''}`}
-            >
-              {renderMemoryItem(item, activeSubTab, index)}
-            </div>
-          )
-        ))}
-      </div>
+      <>
+        <div className="memory-items">
+          {filteredData.map((item, index) => (
+            activeSubTab === 'core-understanding' ? (
+              // For core memory, don't add extra wrapper to avoid double containers
+              <div key={index} id={`memory-${item.id}`}>
+                {renderMemoryItem(item, activeSubTab, index)}
+              </div>
+            ) : (
+              // For other memory types, keep the wrapper
+              <div
+                key={index}
+                id={`memory-${item.id}`}
+                className={`memory-item ${highlightedMemoryId === item.id ? 'highlighted' : ''}`}
+              >
+                {renderMemoryItem(item, activeSubTab, index)}
+              </div>
+            )
+          ))}
+        </div>
+        {renderPaginationControls()}
+      </>
     );
   };
 
@@ -487,6 +596,184 @@ const ExistingMemory = ({ settings }) => {
         element.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
     }, 300);
+  };
+
+  // Helper function to render pagination controls
+  const renderPaginationControls = () => {
+    const currentInfo = paginationInfo[activeSubTab];
+    if (!currentInfo || currentInfo.totalPages <= 1) return null;
+
+    const { currentPage, totalPages, totalCount } = currentInfo;
+
+    return (
+      <div className="pagination-controls">
+        <button
+          className="pagination-btn"
+          disabled={currentPage === 1}
+          onClick={handlePreviousPage}
+          title="Previous page"
+        >
+          ← Previous
+        </button>
+
+        <div className="pagination-info">
+          <span className="pagination-page">Page {currentPage} of {totalPages}</span>
+          <span className="pagination-count">({totalCount} total)</span>
+        </div>
+
+        <button
+          className="pagination-btn"
+          disabled={currentPage === totalPages}
+          onClick={handleNextPage}
+          title="Next page"
+        >
+          Next →
+        </button>
+      </div>
+    );
+  };
+
+  // Helper function to render advanced filters
+  const renderAdvancedFilters = () => {
+    // Only show for raw-memory and past-events tabs
+    if (!['raw-memory', 'past-events'].includes(activeSubTab)) return null;
+
+    const availableApps = ['Chrome', 'Safari', 'Firefox', 'Notion', 'Other'];
+
+    return (
+      <div className="advanced-filters-container">
+        <button
+          className={`advanced-filters-toggle ${showAdvancedFilters ? 'active' : ''} ${hasActiveFilters() ? 'has-filters' : ''}`}
+          onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+        >
+          <span className="filter-icon">🔍</span>
+          <span className="filter-label">
+            {t('memory.filters.advanced', { defaultValue: 'Advanced Filters' })}
+          </span>
+          {hasActiveFilters() && <span className="filter-badge">{sourceAppFilter.length + (dateFilter.from || dateFilter.to ? 1 : 0) + (sortOption !== 'newest' ? 1 : 0)}</span>}
+          <span className="expand-icon">{showAdvancedFilters ? '▲' : '▼'}</span>
+        </button>
+
+        {showAdvancedFilters && (
+          <div className="advanced-filters-panel">
+            {/* Date Range Filter */}
+            <div className="filter-section">
+              <div className="filter-section-title">
+                📅 {t('memory.filters.dateRange', { defaultValue: 'Date Range' })}
+              </div>
+              <div className="filter-date-inputs">
+                <input
+                  type="date"
+                  className="filter-date-input"
+                  value={dateFilter.from}
+                  onChange={(e) => setDateFilter(prev => ({ ...prev, from: e.target.value }))}
+                  placeholder={t('memory.filters.from', { defaultValue: 'From' })}
+                />
+                <span className="filter-date-separator">—</span>
+                <input
+                  type="date"
+                  className="filter-date-input"
+                  value={dateFilter.to}
+                  onChange={(e) => setDateFilter(prev => ({ ...prev, to: e.target.value }))}
+                  placeholder={t('memory.filters.to', { defaultValue: 'To' })}
+                />
+              </div>
+            </div>
+
+            {/* Source App Filter (Raw Memory only) */}
+            {activeSubTab === 'raw-memory' && (
+              <div className="filter-section">
+                <div className="filter-section-title">
+                  💻 {t('memory.filters.sourceApp', { defaultValue: 'Source Application' })}
+                </div>
+                <div className="filter-checkboxes">
+                  {availableApps.map(app => (
+                    <label key={app} className="filter-checkbox-label">
+                      <input
+                        type="checkbox"
+                        checked={sourceAppFilter.includes(app)}
+                        onChange={() => toggleSourceApp(app)}
+                        className="filter-checkbox"
+                      />
+                      <span className="filter-checkbox-text">
+                        {app === 'Chrome' && '🌐'}
+                        {app === 'Safari' && '🧭'}
+                        {app === 'Firefox' && '🦊'}
+                        {app === 'Notion' && '📝'}
+                        {app === 'Other' && '💻'}
+                        {' '}{app}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Sort Options */}
+            <div className="filter-section">
+              <div className="filter-section-title">
+                🔄 {t('memory.filters.sortBy', { defaultValue: 'Sort By' })}
+              </div>
+              <div className="filter-radios">
+                <label className="filter-radio-label">
+                  <input
+                    type="radio"
+                    name="sort"
+                    value="newest"
+                    checked={sortOption === 'newest'}
+                    onChange={(e) => setSortOption(e.target.value)}
+                    className="filter-radio"
+                  />
+                  <span className="filter-radio-text">
+                    {t('memory.filters.newestFirst', { defaultValue: 'Newest First' })}
+                  </span>
+                </label>
+                <label className="filter-radio-label">
+                  <input
+                    type="radio"
+                    name="sort"
+                    value="oldest"
+                    checked={sortOption === 'oldest'}
+                    onChange={(e) => setSortOption(e.target.value)}
+                    className="filter-radio"
+                  />
+                  <span className="filter-radio-text">
+                    {t('memory.filters.oldestFirst', { defaultValue: 'Oldest First' })}
+                  </span>
+                </label>
+                {searchQuery.trim() && (
+                  <label className="filter-radio-label">
+                    <input
+                      type="radio"
+                      name="sort"
+                      value="relevance"
+                      checked={sortOption === 'relevance'}
+                      onChange={(e) => setSortOption(e.target.value)}
+                      className="filter-radio"
+                    />
+                    <span className="filter-radio-text">
+                      {t('memory.filters.relevance', { defaultValue: 'Relevance' })}
+                    </span>
+                  </label>
+                )}
+              </div>
+            </div>
+
+            {/* Clear All Button */}
+            {hasActiveFilters() && (
+              <div className="filter-actions">
+                <button
+                  onClick={clearAllFilters}
+                  className="filter-clear-button"
+                >
+                  ✕ {t('memory.filters.clearAll', { defaultValue: 'Clear All Filters' })}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
   };
 
   // Helper function to render memory reference badges
@@ -1286,6 +1573,9 @@ const ExistingMemory = ({ settings }) => {
               </button>
             )}
           </div>
+
+          {/* Advanced Filters Toggle */}
+          {renderAdvancedFilters()}
 
           {['past-events', 'semantic'].includes(activeSubTab) && (
             <div className="reference-filter-toggle">

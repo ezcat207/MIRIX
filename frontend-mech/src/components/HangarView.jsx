@@ -1,14 +1,30 @@
 import React from 'react';
 
-const HangarView = ({ pilotMetrics, mechs, dailyHistory, onLaunch }) => {
+const HangarView = ({ pilotMetrics, mechs, dailyHistory, onLaunch, onViewStats }) => {
     return (
         <div className="mech-screen screen-hangar active">
             <div className="hangar-header">
                 <div style={{ fontFamily: 'var(--font-hud)', color: 'var(--color-hangar)' }}>
           // HANGAR BAY // PRE-FLIGHT CHECK
                 </div>
-                <div style={{ fontSize: '12px', color: '#aaa' }}>
-                    PILOT: <span style={{ color: '#fff' }}>COMMANDER</span>
+                <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+                    <button
+                        onClick={onViewStats}
+                        style={{
+                            background: 'transparent',
+                            border: '1px solid var(--color-debrief)',
+                            color: 'var(--color-debrief)',
+                            padding: '5px 15px',
+                            cursor: 'pointer',
+                            fontFamily: 'var(--font-hud)',
+                            fontSize: '11px'
+                        }}
+                    >
+                        FLIGHT RECORDER &gt;&gt;
+                    </button>
+                    <div style={{ fontSize: '12px', color: '#aaa' }}>
+                        PILOT: <span style={{ color: '#fff' }}>COMMANDER</span>
+                    </div>
                 </div>
             </div>
 
@@ -41,35 +57,70 @@ const HangarView = ({ pilotMetrics, mechs, dailyHistory, onLaunch }) => {
             </div>
 
             {/* Mech Bay */}
-            <div className="mech-bay">
+            <div className="mech-bay" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '20px' }}>
                 {mechs.map((mech) => (
-                    <div key={mech.id} className="mech-card" onClick={() => onLaunch(mech.id)}>
-                        <div style={{ color: 'var(--color-hangar)', fontWeight: 'bold', marginBottom: '5px' }}>
-                            {mech.name}
-                        </div>
-                        <div style={{ fontSize: '12px', color: '#aaa', marginBottom: '10px' }}>
-                            {mech.type} // {mech.status}
+                    <div
+                        key={mech.id}
+                        className="mech-card"
+                        onClick={() => onLaunch(mech.id)}
+                        style={{
+                            padding: '0',
+                            overflow: 'hidden',
+                            position: 'relative',
+                            height: '280px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            border: '1px solid #333',
+                            background: '#111'
+                        }}
+                    >
+                        {/* Mech Image */}
+                        <div style={{
+                            height: '140px',
+                            background: mech.image ? `url(${mech.image}) center/cover no-repeat` : '#222',
+                            borderBottom: '1px solid #333',
+                            position: 'relative'
+                        }}>
+                            <div style={{
+                                position: 'absolute',
+                                top: '5px',
+                                right: '5px',
+                                background: 'rgba(0,0,0,0.7)',
+                                padding: '2px 5px',
+                                fontSize: '10px',
+                                color: mech.status === 'Ready' ? 'var(--color-hangar)' : '#888',
+                                border: `1px solid ${mech.status === 'Ready' ? 'var(--color-hangar)' : '#444'}`
+                            }}>
+                                {mech.status.toUpperCase()}
+                            </div>
                         </div>
 
-                        {/* Why & What Context */}
-                        <div style={{ fontSize: '11px', color: '#ddd', marginBottom: '5px', fontStyle: 'italic' }}>
-                            WHY: {mech.why || '--'}
-                        </div>
-                        <div style={{ fontSize: '11px', color: '#ddd', marginBottom: '10px' }}>
-                            WHAT: {mech.what || '--'}
-                        </div>
+                        {/* Content */}
+                        <div style={{ padding: '12px', flex: 1, display: 'flex', flexDirection: 'column' }}>
+                            <div style={{ color: 'var(--color-hangar)', fontWeight: 'bold', marginBottom: '5px', fontSize: '14px' }}>
+                                {mech.name}
+                            </div>
+                            <div style={{ fontSize: '10px', color: '#aaa', marginBottom: '8px' }}>
+                                {mech.type.toUpperCase()} // MK-II
+                            </div>
 
-                        <div style={{ fontSize: '10px', color: '#888' }}>
-                            TASKS: {mech.tasks.length}
-                        </div>
-                        <div style={{ marginTop: '10px', textAlign: 'right' }}>
-                            <span style={{ fontSize: '10px', color: 'var(--color-hangar)' }}>LAUNCH &gt;&gt;</span>
+                            {/* Why Context */}
+                            <div style={{ fontSize: '10px', color: '#ddd', marginBottom: 'auto', fontStyle: 'italic', lineHeight: '1.4' }}>
+                                "{mech.why || '--'}"
+                            </div>
+
+                            <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div style={{ fontSize: '10px', color: '#888' }}>
+                                    TASKS: {mech.tasks.length}
+                                </div>
+                                <span style={{ fontSize: '10px', color: 'var(--color-hangar)', fontWeight: 'bold' }}>LAUNCH &gt;&gt;</span>
+                            </div>
                         </div>
                     </div>
                 ))}
                 {mechs.length === 0 && (
-                    <div style={{ color: '#aaa', padding: '20px', textAlign: 'center' }}>
-                        No Mechs detected. Check projects.md.
+                    <div style={{ color: '#aaa', padding: '20px', textAlign: 'center', gridColumn: '1 / -1' }}>
+                        No Mechs detected. Check projects.json.
                     </div>
                 )}
             </div>

@@ -18,7 +18,7 @@ function App() {
   const [settings, setSettings] = useState({
     model: 'gemini-2.5-flash',
     persona: 'helpful_assistant',
-    timezone: 'America/New_York',
+    timezone: 'America/Vancouver',
     serverUrl: 'http://127.0.0.1:47283', // Use 127.0.0.1 to avoid IPv6 resolution issues
     openaiKey: '',
     anthropicKey: '',

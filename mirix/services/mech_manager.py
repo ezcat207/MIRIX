@@ -21,6 +21,7 @@ class Mech(BaseModel):
     name: str
     type: str = "Generic"
     status: str = "Standby"
+    image: Optional[str] = None
     path: Optional[str] = None
     why: Optional[str] = None
     what: Optional[str] = None
@@ -110,6 +111,8 @@ class MechManager:
                     name=item.get("name", "Unknown"),
                     type=item.get("type", "Project"),
                     status=item.get("status", "Ready"),
+                    image=item.get("image"),
+                    path=item.get("path"),
                     why=item.get("why"),
                     what=item.get("what"),
                     tasks=tasks
@@ -131,15 +134,102 @@ class MechManager:
 
     def get_status(self) -> Dict[str, Any]:
         with self.lock:
-            return {
+            status = {
                 "state": self.state.dict(),
                 "mechs": [m.dict() for m in self.mechs],
-                "pilot_metrics": { # Mock data for now, will connect to DB later
-                    "capability": 85,
-                    "wealth": 42,
-                    "influence": 60
-                },
-                "daily_history": getattr(self, "daily_history", []) # Return daily history
+                "pilot_metrics": self._calculate_metrics(),
+                "daily_history": getattr(self, "daily_history", [])
+            }
+            
+            # Only include tactical context if there's an active mech
+            if self.state.active_mech_id:
+                status["tactical_context"] = self._get_tactical_context(self.state.active_mech_id)
+            
+            return status
+
+
+    def _get_tactical_context(self, mech_id: str) -> Dict:
+        """Get tactical context (git commits) for the mech."""
+        try:
+            mech = next((m for m in self.mechs if m.id == mech_id), None)
+            if not mech or not mech.path:
+                return {"commits": []}
+            
+            import subprocess
+            
+            # Get last 5 commits
+            cmd = [
+                "git", "log", "-n", "5", 
+                "--pretty=format:%h|%s|%ar|%an"
+            ]
+            
+            result = subprocess.run(
+                cmd, 
+                cwd=mech.path, 
+                capture_output=True, 
+                text=True, 
+                check=True
+            )
+            
+            commits = []
+            for line in result.stdout.strip().split('\n'):
+                if line:
+                    parts = line.split('|')
+                    if len(parts) >= 4:
+                        commits.append({
+                            "hash": parts[0],
+                            "message": parts[1],
+                            "time": parts[2],
+                            "author": parts[3]
+                        })
+            
+            return {"commits": commits}
+            
+        except Exception as e:
+            logger.error(f"Failed to get tactical context: {e}")
+            return {"commits": []}
+
+    def _calculate_metrics(self) -> Dict[str, float]:
+        """Calculate pilot metrics from database history."""
+        try:
+            from mirix.database.sqlite_functions import session_scope
+            from mirix.orm.mech_session import MechSession
+            from sqlalchemy import func
+            
+            with session_scope() as session:
+                # Calculate totals
+                totals = session.query(
+                    func.sum(MechSession.wealth_generated),
+                    func.sum(MechSession.influence_gained),
+                    func.count(MechSession.id)
+                ).first()
+                
+                wealth = totals[0] or 0.0
+                influence = totals[1] or 0.0
+                total_sessions = totals[2] or 0
+                
+                # Calculate total tasks completed
+                # Since tasks_completed is JSON, we might need to load all sessions to count accurately
+                # or just use session count as a proxy for now. 
+                # For better performance, we'll iterate recent sessions or add a task_count column later.
+                # Let's just load all for MVP (assuming low volume)
+                all_sessions = session.query(MechSession).all()
+                total_tasks = sum(len(s.tasks_completed) for s in all_sessions if s.tasks_completed)
+                
+                # Capability formula: Base 50 + (Tasks * 1.5) + (Sessions * 2)
+                capability = 50.0 + (total_tasks * 1.5) + (total_sessions * 2.0)
+                
+                return {
+                    "capability": round(capability, 1),
+                    "wealth": round(wealth, 1),
+                    "influence": round(influence, 1)
+                }
+        except Exception as e:
+            logger.error(f"Failed to calculate metrics: {e}")
+            return {
+                "capability": 50.0,
+                "wealth": 0.0,
+                "influence": 0.0
             }
 
     def launch_mech(self, mech_id: str) -> bool:

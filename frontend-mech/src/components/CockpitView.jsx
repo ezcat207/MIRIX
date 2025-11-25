@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-const CockpitView = ({ activeMech, onCompleteTask, onMissionComplete }) => {
+const CockpitView = ({ activeMech, tacticalContext, onCompleteTask, onMissionComplete }) => {
     const [sessionTime, setSessionTime] = useState(0);
     const [shieldIntegrity, setShieldIntegrity] = useState(100);
 
@@ -91,6 +91,28 @@ const CockpitView = ({ activeMech, onCompleteTask, onMissionComplete }) => {
                 <div style={{ fontSize: '12px' }}>
                     FOCUS SCORE: <span style={{ color: '#fff' }}>{shieldIntegrity}%</span>
                 </div>
+
+                {/* Tactical Analysis (Git Commits) */}
+                {tacticalContext?.commits && tacticalContext.commits.length > 0 && (
+                    <div style={{ marginTop: '20px', borderTop: '1px solid #333', paddingTop: '10px' }}>
+                        <div style={{ color: 'var(--color-cockpit)', marginBottom: '5px', fontSize: '11px' }}>TACTICAL ANALYSIS</div>
+                        <div style={{ maxHeight: '150px', overflowY: 'auto' }}>
+                            {tacticalContext.commits.map((commit, idx) => (
+                                <div key={idx} style={{ marginBottom: '8px', fontSize: '10px' }}>
+                                    <div style={{ color: '#aaa' }}>
+                                        <span style={{ color: '#fff' }}>{commit.hash}</span> | {commit.author}
+                                    </div>
+                                    <div style={{ color: '#888', fontStyle: 'italic' }}>
+                                        {commit.message}
+                                    </div>
+                                    <div style={{ color: '#555', fontSize: '9px' }}>
+                                        {commit.time}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
 
                 {/* Active Prompt Context */}
                 {taskPrompt && (
