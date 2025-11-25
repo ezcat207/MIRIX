@@ -36,9 +36,27 @@ const CockpitView = ({ activeMech, tacticalContext, onCompleteTask, onMissionCom
                 <div style={{ color: 'var(--color-cockpit)', fontFamily: 'var(--font-hud)' }}>
           // COMBAT MODE // <span style={{ color: '#fff' }}>{activeMech?.name || 'UNKNOWN'}</span>
                 </div>
-                <button className="mech-btn btn-cockpit" onClick={onMissionComplete}>
-                    MISSION COMPLETE
-                </button>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                    <button
+                        className="mech-btn"
+                        style={{
+                            background: 'transparent',
+                            border: '1px solid #888',
+                            color: '#888',
+                            fontSize: '11px'
+                        }}
+                        onClick={() => {
+                            if (window.confirm('Abort mission? Progress will not be saved.')) {
+                                window.location.reload();
+                            }
+                        }}
+                    >
+                        ABORT MISSION
+                    </button>
+                    <button className="mech-btn btn-cockpit" onClick={onMissionComplete}>
+                        MISSION COMPLETE
+                    </button>
+                </div>
             </div>
 
             {/* Left HUD */}
