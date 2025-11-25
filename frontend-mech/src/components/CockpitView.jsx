@@ -3,6 +3,8 @@ import React, { useState, useEffect } from 'react';
 const CockpitView = ({ activeMech, tacticalContext, onCompleteTask, onMissionComplete }) => {
     const [sessionTime, setSessionTime] = useState(0);
     const [shieldIntegrity, setShieldIntegrity] = useState(100);
+    const [showIntro, setShowIntro] = useState(true);
+    const [videoEnded, setVideoEnded] = useState(false);
 
     // Timer
     useEffect(() => {
@@ -29,8 +31,61 @@ const CockpitView = ({ activeMech, tacticalContext, onCompleteTask, onMissionCom
     const taskHow = typeof currentTask === 'object' ? currentTask.how : null;
     const taskPrompt = typeof currentTask === 'object' ? currentTask.prompt : null;
 
+    // Handle intro video
+    const handleVideoEnd = () => {
+        setVideoEnded(true);
+        setTimeout(() => setShowIntro(false), 500);
+    };
+
+    const skipIntro = () => {
+        setShowIntro(false);
+    };
+
     return (
         <div className="mech-screen screen-cockpit active">
+            {/* Intro Video Overlay */}
+            {showIntro && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    width: '100vw',
+                    height: '100vh',
+                    background: '#000',
+                    zIndex: 9999,
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    opacity: videoEnded ? 0 : 1,
+                    transition: 'opacity 0.5s'
+                }}>
+                    <video
+                        autoPlay
+                        style={{ maxWidth: '100%', maxHeight: '100%' }}
+                        onEnded={handleVideoEnd}
+                    >
+                        <source src="/assets/cockpit-intro.mp4" type="video/mp4" />
+                    </video>
+                    <button
+                        onClick={skipIntro}
+                        style={{
+                            position: 'absolute',
+                            bottom: '30px',
+                            right: '30px',
+                            background: 'rgba(0, 255, 65, 0.2)',
+                            border: '1px solid var(--color-cockpit)',
+                            color: 'var(--color-cockpit)',
+                            padding: '10px 20px',
+                            cursor: 'pointer',
+                            fontFamily: 'var(--font-hud)',
+                            fontSize: '12px'
+                        }}
+                    >
+                        SKIP INTRO &gt;&gt;
+                    </button>
+                </div>
+            )}
+
             {/* Top Bar */}
             <div style={{ gridColumn: '1/-1', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--color-cockpit)', padding: '0 20px' }}>
                 <div style={{ color: 'var(--color-cockpit)', fontFamily: 'var(--font-hud)' }}>
