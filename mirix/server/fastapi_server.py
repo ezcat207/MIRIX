@@ -3355,6 +3355,36 @@ async def get_mech_sessions():
         return {"sessions": []}
 
 
+class ReflectionQuestionRequest(BaseModel):
+    task_title: str
+    duration_minutes: int
+    project_why: Optional[str] = None
+    project_what: Optional[str] = None
+
+
+@app.post("/mech/oracle/reflection")
+async def generate_reflection_question(request: ReflectionQuestionRequest):
+    """Generate a context-aware reflection question using AI Oracle."""
+    try:
+        from mirix.services.oracle_service import get_oracle_service
+        
+        # Get Oracle service with LLM wrapper
+        oracle = get_oracle_service(agent)
+        
+        question = await oracle.generate_reflection_question(
+            task_title=request.task_title,
+            duration_minutes=request.duration_minutes,
+            project_why=request.project_why,
+            project_what=request.project_what
+        )
+        
+        return {"question": question}
+    except Exception as e:
+        logger.error(f"Failed to generate reflection question: {e}")
+        # Return fallback question
+        return {"question": "What was the most valuable insight from this task, and how will you apply it?"}
+
+
 if __name__ == "__main__":
     import uvicorn
 
