@@ -64,7 +64,7 @@ const CockpitView = ({ activeMech, tacticalContext, onCompleteTask, onMissionCom
                         style={{ maxWidth: '100%', maxHeight: '100%' }}
                         onEnded={handleVideoEnd}
                     >
-                        <source src="/assets/cockpit-intro.mp4" type="video/mp4" />
+                        <source src={activeMech?.intro_video || "/assets/cockpit-intro.mp4"} type="video/mp4" />
                     </video>
                     <button
                         onClick={skipIntro}

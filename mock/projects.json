@@ -25,18 +25,25 @@
     },
     {
         "id": "mech-1",
-        "name": "健康管理 (Pending)",
-        "type": "Routine",
-        "status": "Pending",
-        "image": "/assets/mechs/mech_guard.png",
-        "why": "保持身体健康以支持高强度工作",
-        "what": "每日晨练与饮食记录",
+        "name": "Luna Guardian",
+        "type": "Family",
+        "status": "Ready",
+        "image": "/assets/mechs/mech_luna.png",
+        "intro_video": "/assets/luna-intro.mp4",
+        "why": "建立深厚的情感纽带，培养女儿的好奇心和想象力",
+        "what": "每日高质量陪伴时间，通过故事和游戏传递价值观",
         "tasks": [
             {
-                "title": "晨练 30 分钟",
-                "how": "跑步或瑜伽",
-                "prompt": "💡 提示：穿上运动鞋，出门。不要思考，直接行动。",
+                "title": "读睡前故事《小王子》",
+                "how": "阅读并讨论故事中的寓意",
+                "prompt": "💡 提示：慢下来。不要急着讲完，观察女儿的表情。如果她走神了，停下来问她：'你觉得小王子为什么要拔掉猴面包树？'",
                 "xp": "+15 XP"
+            },
+            {
+                "title": "周末公园探险",
+                "how": "带女儿去公园，观察自然，收集树叶和石头",
+                "prompt": "💡 提示：让她主导。你只负责跟随和提问。不要教她'正确答案'，让她自己发现。",
+                "xp": "+20 XP"
             }
         ]
     },

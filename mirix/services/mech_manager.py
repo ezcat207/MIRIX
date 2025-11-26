@@ -22,6 +22,7 @@ class Mech(BaseModel):
     type: str = "Generic"
     status: str = "Standby"
     image: Optional[str] = None
+    intro_video: Optional[str] = None
     path: Optional[str] = None
     why: Optional[str] = None
     what: Optional[str] = None
@@ -112,6 +113,7 @@ class MechManager:
                     type=item.get("type", "Project"),
                     status=item.get("status", "Ready"),
                     image=item.get("image"),
+                    intro_video=item.get("intro_video"),
                     path=item.get("path"),
                     why=item.get("why"),
                     what=item.get("what"),
