@@ -4,7 +4,7 @@
         "name": "MIRIX-01",
         "type": "Project",
         "status": "Ready",
-        "image": "/assets/mechs/mech_intel.png",
+        "image": "/assets/mechs/mech_mirix.png",
         "path": "/Volumes/Lexar/AISync90/MIRIX",
         "why": "构建一个\"外部前额叶皮层\"，通过游戏化系统保证目标达成",
         "what": "Phase 2 SDK - 将战略、执行、复盘统一到一个闭环系统中",
