@@ -1071,15 +1071,17 @@ async def send_streaming_message_endpoint(request: MessageRequest):
                             from mirix.orm.chat_history import ChatMessage
                             from mirix.server.server import db_context
                             
-                            with db_context() as session:
-                                asst_msg = ChatMessage(
-                                    role="assistant",
-                                    content=final_result['response'],
-                                    thinking_steps=thinking_steps,
-                                    memory_references=final_result.get('memoryReferences')
-                                )
-                                session.add(asst_msg)
-                                session.commit()
+                            # Only save assistant message if it has content
+                            if final_result['response'] and final_result['response'].strip():
+                                with db_context() as session:
+                                    asst_msg = ChatMessage(
+                                        role="assistant",
+                                        content=final_result['response'],
+                                        thinking_steps=thinking_steps,
+                                        memory_references=final_result.get('memoryReferences')
+                                    )
+                                    session.add(asst_msg)
+                                    session.commit()
                         except Exception as e:
                             print(f"Error saving assistant message: {e}")
 
