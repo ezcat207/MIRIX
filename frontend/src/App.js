@@ -16,8 +16,8 @@ function App() {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState('chat');
   const [settings, setSettings] = useState({
-    model: 'gemini-2.0-flash-lite',
-    memoryModel: 'gemini-2.0-flash-lite',
+    model: 'qwen3-vl:235b-cloud',
+    memoryModel: 'qwen3-vl:235b-cloud',
     persona: 'helpful_assistant',
     timezone: 'America/Vancouver',
     serverUrl: 'http://127.0.0.1:47283', // Use 127.0.0.1 to avoid IPv6 resolution issues
